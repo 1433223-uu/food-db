@@ -147,16 +147,6 @@
   .ref-note { text-align:center; font-size:12px; color:#9aa89b;
     margin-top:6px; margin-bottom:20px; letter-spacing:.5px; }
 
-  .ex-sci-tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-  .ex-sci-tab { padding:8px 16px; border-radius:20px; font-size:13px; cursor:pointer;
-    border:1.5px solid #dce8dd; background:#fbfdfb; transition:.2s; }
-  .ex-sci-tab.active { background:var(--green); color:#fff; border-color:var(--green); font-weight:600; }
-  .ex-sci-content { background:#f4faf4; border-radius:12px; padding:16px;
-    font-size:13px; color:#5a6b5b; line-height:1.85; }
-  .ex-sci-content strong { color:var(--green-dark); }
-  .ex-sci-content ul { padding-left:18px; margin:8px 0; }
-  .ex-sci-content li { margin-bottom:4px; }
-
   .export-box { margin-top:14px; padding:16px; background:#f7fbf7; border-radius:12px;
     font-family:monospace; font-size:12px; white-space:pre-wrap; max-height:260px;
     overflow-y:auto; border:1px dashed #c8e6c9; line-height:1.7; display:none; }
@@ -164,6 +154,40 @@
   .db-status { text-align:center; font-size:12px; margin-bottom:8px; font-weight:600; }
   .db-bar { text-align:center; margin-bottom:14px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
   .db-bar button { width:auto; padding:6px 16px; font-size:12px; margin:0; }
+
+  /* 个性化运动卡片 */
+  .plan-banner { display:flex; align-items:center; gap:14px; padding:16px;
+    background:linear-gradient(135deg,#e8f5e9,#e0f2f1); border-radius:14px; margin-bottom:16px; }
+  .plan-banner .pb-icon { font-size:36px; }
+  .plan-banner .pb-text { flex:1; }
+  .plan-banner .pb-title { font-size:15px; font-weight:700; color:var(--green-dark); margin-bottom:4px; }
+  .plan-banner .pb-sub { font-size:12px; color:#6b7a6c; line-height:1.6; }
+  .plan-banner .pb-tag { font-size:11px; padding:3px 10px; border-radius:10px;
+    background:#fff; color:var(--green-dark); font-weight:600; white-space:nowrap; }
+
+  .week-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-top:10px; }
+  .week-day { text-align:center; padding:10px 4px; border-radius:10px; background:#f7fbf7; font-size:11px; }
+  .week-day .wd-name { font-weight:600; color:#5a6b5b; margin-bottom:4px; }
+  .week-day .wd-icon { font-size:16px; }
+  .week-day.rest { background:#f4faf4; color:#9aa89b; }
+  .week-day.hi { background:#e8f5e9; }
+  .week-day.cardio { background:#e3f2fd; }
+  .week-day.strength { background:#fff3e0; }
+
+  .session-list { margin-top:10px; }
+  .session-item { border-left:3px solid #66bb6a; background:#f4faf4; padding:12px 14px;
+    border-radius:0 10px 10px 0; margin-bottom:10px; }
+  .session-item .si-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .session-item .si-title { font-weight:700; font-size:14px; color:var(--green-dark); }
+  .session-item .si-meta { font-size:11px; padding:2px 8px; border-radius:8px;
+    background:var(--green-light); color:var(--green-dark); font-weight:600; }
+  .session-item .si-body { font-size:13px; color:#5a6b5b; line-height:1.75; }
+  .session-item .si-body ul { padding-left:18px; margin:6px 0; }
+  .session-item .si-body li { margin-bottom:3px; }
+  .session-item .si-note { font-size:11px; color:#fb8c00; margin-top:6px; }
+
+  .warn-box { background:#fff3e0; border-left:3px solid #fb8c00; padding:12px 14px;
+    border-radius:0 10px 10px 0; font-size:12px; color:#8a5a00; line-height:1.7; margin-top:12px; }
 </style>
 </head>
 <body>
@@ -276,21 +300,8 @@
     </div>
 
     <div class="card">
-      <h3>运动建议</h3>
-      <div class="ex-grid" id="exercise"></div>
-      <p class="note">以上为达成每日热量缺口所需的运动量估算，可自由组合。</p>
-    </div>
-
-    <div class="card">
-      <h3>🏃 运动科普</h3>
-      <div class="ex-sci-tabs" id="exSciTabs">
-        <div class="ex-sci-tab active" data-tab="cardio">有氧运动</div>
-        <div class="ex-sci-tab" data-tab="strength">力量训练</div>
-        <div class="ex-sci-tab" data-tab="hiit">HIIT</div>
-        <div class="ex-sci-tab" data-tab="stretch">拉伸恢复</div>
-        <div class="ex-sci-tab" data-tab="tips">运动小贴士</div>
-      </div>
-      <div class="ex-sci-content" id="exSciContent"></div>
+      <h3>🎯 你的专属运动方案</h3>
+      <div id="exercisePlan"></div>
     </div>
 
     <div class="card">
@@ -372,12 +383,12 @@
 // ① 联网加载食物库（多源自动切换）
 // ============================================================
 const FOOD_DB_SOURCES = [
-  './foods.json',                                                        // 同域，最快最稳
-  'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/foods.json',      // jsDelivr，国内可访问
-  'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json' // 最后兜底
+  './foods.json',
+  'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/foods.json',
+  'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json'
 ];
 const CACHE_KEY = 'food_db_cache_v4';
-const CACHE_TIME = 1000 * 60 * 10; // 本地缓存 10 分钟
+const CACHE_TIME = 1000 * 60 * 10;
 
 const FOOD_DB_FALLBACK = {
   '米饭':   { kcal:116, p:2.6, f:0.3, c:25.9, cat:'主食', serving:{name:'碗',gram:200}, sci:'主要提供碳水化合物，是身体最直接的能量来源。' },
@@ -538,56 +549,370 @@ const MEALS = {
 };
 
 // ============================================================
-// ④ 运动科普
+// ④ 个性化运动方案引擎
 // ============================================================
-const EX_SCIENCE = {
-  cardio: `<strong>有氧运动</strong>（跑步、快走、游泳、骑车）<br>
-    通过持续、有节奏的供能方式，提高心肺功能和脂肪氧化效率。<br>
-    <ul>
-      <li><strong>心率区间：</strong>最大心率（220-年龄）的 60%–75%，是燃脂最佳区间</li>
-      <li><strong>推荐时长：</strong>每次 30–60 分钟，每周 3–5 次</li>
-      <li><strong>燃脂特点：</strong>运动中直接消耗脂肪，但停止后代谢提升有限</li>
-      <li><strong>适合人群：</strong>减脂初期、心肺功能较弱者</li>
-    </ul>
-    <strong>常见误区：</strong>并非「出汗越多越好」，关键是心率和持续时间。`,
-  strength: `<strong>力量训练</strong>（哑铃、深蹲、俯卧撑、器械）<br>
-    通过抗阻刺激肌肉，增加肌肉量，从而提高基础代谢。<br>
-    <ul>
-      <li><strong>核心动作：</strong>深蹲、硬拉、卧推、划船、引体向上</li>
-      <li><strong>推荐频率：</strong>每周 2–4 次，每个肌群间隔 48 小时</li>
-      <li><strong>减脂价值：</strong>肌肉每增加 1kg，每天多消耗约 30–50 kcal</li>
-      <li><strong>额外收益：</strong>改善体态、增强骨密度、稳定血糖</li>
-    </ul>
-    <strong>建议：</strong>减脂期「力量+有氧」结合，效果优于单纯有氧。`,
-  hiit: `<strong>HIIT 高强度间歇训练</strong><br>
-    短时间高强度爆发 + 短暂休息循环，例如 20 秒冲刺 + 40 秒慢走。<br>
-    <ul>
-      <li><strong>时长：</strong>每次 15–25 分钟即可，效率极高</li>
-      <li><strong>EPOC 效应：</strong>运动后 24–48 小时持续额外耗能（后燃效应）</li>
-      <li><strong>适合人群：</strong>时间少、有一定运动基础者</li>
-      <li><strong>注意：</strong>强度大，每周不超过 3 次，需充分热身</li>
-    </ul>
-    <strong>示例：</strong>波比跳、开合跳、高抬腿，各 30 秒交替。`,
-  stretch: `<strong>拉伸与恢复</strong><br>
-    运动后的拉伸、泡沫轴放松、瑜伽等，有助肌肉恢复和柔韧性。<br>
-    <ul>
-      <li><strong>运动后静态拉伸：</strong>每个动作保持 20–30 秒</li>
-      <li><strong>泡沫轴放松：</strong>缓解肌肉紧张，促进血液循环</li>
-      <li><strong>睡眠：</strong>7–9 小时，是肌肉修复和激素调节的关键</li>
-      <li><strong>补水：</strong>运动前后适量补水，避免脱水影响代谢</li>
-    </ul>
-    <strong>提示：</strong>恢复做得越好，下次训练表现越强。`,
-  tips: `<strong>运动小贴士</strong><br>
-    <ul>
-      <li><strong>循序渐进：</strong>从每周 2 次开始，逐步增加强度和时长</li>
-      <li><strong>热身 5–10 分钟：</strong>降低受伤风险，提高运动表现</li>
-      <li><strong>心率监测：</strong>用运动手环或手动测脉搏，控制在目标区间</li>
-      <li><strong>餐后运动：</strong>饭后 1–2 小时再运动，避免肠胃不适</li>
-      <li><strong>持之以恒：</strong>每周累计 150 分钟中等强度运动是基本目标</li>
-      <li><strong>量力而行：</strong>出现头晕、胸闷应立即停止</li>
-    </ul>
-    运动是长期习惯，不是短期冲刺。找到你喜欢的方式，才能坚持。`
+
+// 活动量等级 -> 每周训练天数
+const ACTIVITY_LEVELS = {
+  1.2:   { key:'sedentary', label:'久坐型',   days:3, level:1 },
+  1.375: { key:'light',     label:'轻度活动', days:3, level:2 },
+  1.55:  { key:'moderate',  label:'中度活动', days:4, level:3 },
+  1.725: { key:'high',      label:'高度活动', days:5, level:4 }
 };
+
+// BMI 分类 -> 目标
+function getBmiGoal(bmi) {
+  if (bmi < 18.5) return {
+    key:'underweight', label:'增重增肌',
+    icon:'🍚',
+    desc:'你的体重偏低，重点是通过力量训练增肌，配合充足热量摄入。有氧运动不宜过多，避免消耗过多热量。'
+  };
+  if (bmi < 24) return {
+    key:'normal', label:'保持体能',
+    icon:'⚖️',
+    desc:'你的体重在健康范围，目标是维持体能、增强肌肉线条。力量和有氧均衡搭配。'
+  };
+  if (bmi < 28) return {
+    key:'overweight', label:'减脂塑形',
+    icon:'🔥',
+    desc:'你的体重偏高，重点是制造热量缺口。以中低强度有氧为主，配合力量训练保住肌肉。'
+  };
+  return {
+    key:'obese', label:'安全减重',
+    icon:'🛡️',
+    desc:'你的体重明显偏高，初期以低冲击有氧为主，保护膝盖和关节，逐步加入力量训练。'
+  };
+}
+
+// 根据 BMI 分类 + 活动等级，返回每周训练安排
+function buildWeeklySchedule(bmiGoalKey, activityLevel) {
+  // 7 天安排，每项是 {type, label, icon}
+  // type: rest / cardio / strength / hiit / mix
+  const templates = {
+    // 增重增肌：力量为主，有氧少
+    underweight: {
+      1: ['strength','rest','cardio','rest','strength','rest','rest'],
+      2: ['strength','cardio','rest','strength','rest','cardio','rest'],
+      3: ['strength','cardio','strength','rest','strength','cardio','rest'],
+      4: ['strength','cardio','strength','rest','strength','cardio','strength']
+    },
+    // 保持体能：力量有氧均衡
+    normal: {
+      1: ['cardio','rest','strength','rest','cardio','rest','rest'],
+      2: ['cardio','strength','rest','cardio','strength','rest','rest'],
+      3: ['cardio','strength','rest','cardio','strength','cardio','rest'],
+      4: ['cardio','strength','hiit','rest','strength','cardio','strength']
+    },
+    // 减脂塑形：有氧+HIIT 为主，力量保肌
+    overweight: {
+      1: ['cardio','rest','strength','rest','cardio','rest','rest'],
+      2: ['cardio','strength','rest','cardio','strength','cardio','rest'],
+      3: ['cardio','strength','hiit','rest','cardio','strength','cardio'],
+      4: ['cardio','strength','hiit','cardio','strength','hiit','cardio']
+    },
+    // 安全减重：低冲击有氧为主
+    obese: {
+      1: ['cardio','rest','cardio','rest','strength','rest','rest'],
+      2: ['cardio','rest','cardio','strength','rest','cardio','rest'],
+      3: ['cardio','strength','cardio','rest','cardio','strength','cardio'],
+      4: ['cardio','strength','cardio','hiit','cardio','strength','cardio']
+    }
+  };
+
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const typeMap = {
+    rest:     { icon:'😴', label:'休息',   cls:'rest' },
+    cardio:   { icon:'🏃', label:'有氧',   cls:'cardio' },
+    strength: { icon:'🏋️', label:'力量',   cls:'strength' },
+    hiit:     { icon:'⚡', label:'HIIT',   cls:'hi' }
+  };
+
+  const arr = templates[bmiGoalKey][activityLevel];
+  return arr.map((t, i) => ({
+    day: dayNames[i],
+    type: t,
+    ...typeMap[t]
+  }));
+}
+
+// 根据 BMI 分类 + 活动等级，返回具体运动项目说明
+function buildSessionDetails(bmiGoalKey, activityLevel) {
+  const sessions = {};
+
+  // ===== 有氧运动 =====
+  if (bmiGoalKey === 'obese') {
+    // 肥胖：低冲击，保护关节
+    sessions.cardio = {
+      title: '低冲击有氧（保护关节）',
+      meta: '40–50 分钟',
+      body: `<ul>
+        <li><strong>快走：</strong>速度 5–6 km/h，40 分钟，心率控制在最大心率 55%–65%</li>
+        <li><strong>椭圆机：</strong>阻力适中，40 分钟，对膝盖几乎无冲击</li>
+        <li><strong>游泳 / 水中走：</strong>30–40 分钟，水的浮力减轻关节压力</li>
+        <li><strong>固定自行车：</strong>40 分钟，坐姿骑行，保护膝盖</li>
+      </ul>`,
+      note: '⚠️ 避免跑步、跳绳、深蹲跳等高冲击动作，等体重下降后再逐步加入。'
+    };
+  } else if (bmiGoalKey === 'overweight') {
+    sessions.cardio = {
+      title: '中低强度有氧（燃脂为主）',
+      meta: '40–60 分钟',
+      body: `<ul>
+        <li><strong>慢跑：</strong>6–8 km/h，40 分钟，心率 60%–70%</li>
+        <li><strong>快走 + 坡度：</strong>跑步机坡度 5%–8%，45 分钟</li>
+        <li><strong>动感单车：</strong>45 分钟，中低阻力持续骑行</li>
+        <li><strong>游泳：</strong>40 分钟，自由泳 / 蛙泳交替</li>
+      </ul>`,
+      note: '💡 有氧安排在力量训练之后，燃脂效率更高。'
+    };
+  } else if (bmiGoalKey === 'normal') {
+    sessions.cardio = {
+      title: '中等强度有氧（保持心肺）',
+      meta: '30–45 分钟',
+      body: `<ul>
+        <li><strong>慢跑：</strong>8–10 km/h，30–40 分钟</li>
+        <li><strong>骑行：</strong>户外或动感单车，45 分钟</li>
+        <li><strong>跳绳：</strong>分组进行，每组 2 分钟 × 8 组</li>
+        <li><strong>爬楼梯：</strong>20–30 层，心率 65%–75%</li>
+      </ul>`,
+      note: '✅ 你体重正常，可以放心做各种有氧运动。'
+    };
+  } else {
+    // 偏瘦：有氧少而精
+    sessions.cardio = {
+      title: '轻度有氧（避免过度消耗）',
+      meta: '20–30 分钟',
+      body: `<ul>
+        <li><strong>快走：</strong>20–30 分钟，心率 55%–65%</li>
+        <li><strong>慢速骑行：</strong>20 分钟，轻松节奏</li>
+        <li><strong>跳绳：</strong>短时分组，每组 1 分钟 × 5 组</li>
+      </ul>`,
+      note: '⚠️ 你偏瘦，有氧不宜过多，否则会消耗增肌所需的热量。'
+    };
+  }
+
+  // ===== 力量训练 =====
+  if (bmiGoalKey === 'underweight') {
+    sessions.strength = {
+      title: '增肌力量训练（大重量低次数）',
+      meta: '45–60 分钟',
+      body: `<ul>
+        <li><strong>深蹲：</strong>4 组 × 8–10 次，负重逐渐增加</li>
+        <li><strong>硬拉：</strong>4 组 × 6–8 次</li>
+        <li><strong>卧推：</strong>4 组 × 8–10 次</li>
+        <li><strong>划船：</strong>4 组 × 10 次</li>
+        <li><strong>引体向上 / 高位下拉：</strong>4 组 × 8–10 次</li>
+      </ul>`,
+      note: '💡 组间休息 90–120 秒，训练后 30 分钟内补充蛋白质。'
+    };
+  } else if (bmiGoalKey === 'normal') {
+    sessions.strength = {
+      title: '常规力量训练（塑形）',
+      meta: '40–50 分钟',
+      body: `<ul>
+        <li><strong>深蹲：</strong>4 组 × 10–12 次</li>
+        <li><strong>俯卧撑 / 卧推：</strong>4 组 × 12 次</li>
+        <li><strong>弓步蹲：</strong>3 组 × 每侧 12 次</li>
+        <li><strong>哑铃划船：</strong>4 组 × 12 次</li>
+        <li><strong>平板支撑：</strong>3 组 × 45 秒</li>
+      </ul>`,
+      note: '💡 组间休息 60–90 秒，注重动作质量。'
+    };
+  } else if (bmiGoalKey === 'overweight') {
+    sessions.strength = {
+      title: '保肌力量训练（复合动作）',
+      meta: '30–40 分钟',
+      body: `<ul>
+        <li><strong>深蹲：</strong>3 组 × 12 次（轻重量）</li>
+        <li><strong>俯卧撑：</strong>3 组 × 10–12 次</li>
+        <li><strong>哑铃划船：</strong>3 组 × 12 次</li>
+        <li><strong>臀桥：</strong>3 组 × 15 次</li>
+        <li><strong>平板支撑：</strong>3 组 × 30 秒</li>
+      </ul>`,
+      note: '💡 减脂期力量训练的目的是保住肌肉，不需要大重量。'
+    };
+  } else {
+    // 肥胖：坐姿 / 器械为主
+    sessions.strength = {
+      title: '坐姿 / 器械力量（安全增肌）',
+      meta: '25–35 分钟',
+      body: `<ul>
+        <li><strong>坐姿腿举：</strong>3 组 × 12 次（器械）</li>
+        <li><strong>坐姿推胸：</strong>3 组 × 12 次（器械）</li>
+        <li><strong>坐姿划船：</strong>3 组 × 12 次（器械）</li>
+        <li><strong>臀桥：</strong>3 组 × 15 次</li>
+        <li><strong>靠墙静蹲：</strong>3 组 × 30 秒</li>
+      </ul>`,
+      note: '⚠️ 避免站姿自由重量深蹲、硬拉，等体重下降后再逐步加入。'
+    };
+  }
+
+  // ===== HIIT =====
+  if (bmiGoalKey === 'obese') {
+    sessions.hiit = {
+      title: '低冲击 HIIT',
+      meta: '15 分钟',
+      body: `<ul>
+        <li><strong>快走冲刺 + 慢走：</strong>30 秒快 + 60 秒慢 × 8 轮</li>
+        <li><strong>椭圆机冲刺：</strong>20 秒快 + 40 秒慢 × 8 轮</li>
+        <li><strong>动感单车冲刺：</strong>20 秒快 + 40 秒慢 × 8 轮</li>
+      </ul>`,
+      note: '⚠️ 不要做波比跳、开合跳、深蹲跳等高冲击动作。'
+    };
+  } else if (bmiGoalKey === 'overweight') {
+    sessions.hiit = {
+      title: '标准 HIIT（燃脂）',
+      meta: '15–20 分钟',
+      body: `<ul>
+        <li><strong>开合跳：</strong>30 秒 × 6 组</li>
+        <li><strong>高抬腿：</strong>30 秒 × 6 组</li>
+        <li><strong>波比跳：</strong>20 秒 × 6 组</li>
+        <li><strong>登山跑：</strong>30 秒 × 6 组</li>
+      </ul>`,
+      note: '💡 每组之间休息 30 秒，每周不超过 2 次。'
+    };
+  } else if (bmiGoalKey === 'normal') {
+    sessions.hiit = {
+      title: '进阶 HIIT（提升体能）',
+      meta: '15–20 分钟',
+      body: `<ul>
+        <li><strong>波比跳：</strong>30 秒 × 8 组</li>
+        <li><strong>深蹲跳：</strong>30 秒 × 6 组</li>
+        <li><strong>俯卧撑 + 跳起：</strong>30 秒 × 6 组</li>
+        <li><strong>高抬腿：</strong>30 秒 × 6 组</li>
+      </ul>`,
+      note: '💡 组间休息 20–30 秒，训练前充分热身。'
+    };
+  } else {
+    sessions.hiit = {
+      title: '轻量 HIIT',
+      meta: '10–15 分钟',
+      body: `<ul>
+        <li><strong>开合跳：</strong>30 秒 × 5 组</li>
+        <li><strong>高抬腿：</strong>30 秒 × 5 组</li>
+      </ul>`,
+      note: '⚠️ 偏瘦人群不要频繁做 HIIT，会消耗增肌热量。'
+    };
+  }
+
+  // ===== 休息日建议 =====
+  sessions.rest = {
+    title: '休息与恢复',
+    meta: '主动恢复',
+    body: `<ul>
+      <li><strong>拉伸：</strong>全身静态拉伸 10–15 分钟</li>
+      <li><strong>散步：</strong>轻松散步 20–30 分钟</li>
+      <li><strong>睡眠：</strong>保证 7–9 小时，是肌肉修复的关键</li>
+      <li><strong>补水：</strong>每天 1.5–2L 水</li>
+    </ul>`,
+    note: '💡 恢复做得好，下次训练表现更强。'
+  };
+
+  return sessions;
+}
+
+// 渲染个性化运动方案
+function renderExercisePlan() {
+  if (!currentData) return;
+  const d = currentData;
+  const activity = parseFloat(d.activity);
+  const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
+  const goal = getBmiGoal(d.bmi);
+  const schedule = buildWeeklySchedule(goal.key, levelInfo.level);
+  const sessions = buildSessionDetails(goal.key, levelInfo.level);
+
+  // 训练天数统计
+  const trainDays = schedule.filter(s => s.type !== 'rest').length;
+  const cardioDays = schedule.filter(s => s.type === 'cardio').length;
+  const strengthDays = schedule.filter(s => s.type === 'strength').length;
+  const hiitDays = schedule.filter(s => s.type === 'hiit').length;
+
+  // 热量缺口 & 运动量估算
+  const deficit = d.bmi>=24 ? 400 : d.bmi<18.5 ? 0 : 150;
+  const runMin = deficit>0 ? Math.round(deficit/(0.11*d.w)) : 0;
+  const steps = deficit>0 ? Math.round(deficit/(0.00045*d.w)) : 0;
+
+  // 顶部横幅
+  let html = `
+    <div class="plan-banner">
+      <div class="pb-icon">${goal.icon}</div>
+      <div class="pb-text">
+        <div class="pb-title">${goal.label} · ${levelInfo.label}</div>
+        <div class="pb-sub">${goal.desc}</div>
+      </div>
+      <div class="pb-tag">每周 ${trainDays} 练</div>
+    </div>
+  `;
+
+  // 每周安排
+  html += `<h3 style="margin-top:6px">📅 每周训练安排</h3>`;
+  html += `<div class="week-grid">`;
+  schedule.forEach(s => {
+    html += `<div class="week-day ${s.cls}">
+      <div class="wd-name">${s.day}</div>
+      <div class="wd-icon">${s.icon}</div>
+      <div style="font-size:10px;margin-top:2px;color:#6b7a6c">${s.label}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // 训练结构统计
+  html += `<div class="ex-grid" style="margin-top:14px">
+    <div class="ex-item"><div class="ex-val">${cardioDays}<small> 天</small></div><div class="ex-label">有氧 🏃</div></div>
+    <div class="ex-item"><div class="ex-val">${strengthDays}<small> 天</small></div><div class="ex-label">力量 🏋️</div></div>
+    <div class="ex-item"><div class="ex-val">${hiitDays}<small> 天</small></div><div class="ex-label">HIIT ⚡</div></div>
+    <div class="ex-item"><div class="ex-val">${7-trainDays}<small> 天</small></div><div class="ex-label">休息 😴</div></div>
+  </div>`;
+
+  // 每个训练类型的详细内容
+  const usedTypes = new Set(schedule.filter(s => s.type !== 'rest').map(s => s.type));
+  html += `<h3 style="margin-top:20px">🏃 具体训练内容</h3>`;
+  html += `<div class="session-list">`;
+
+  ['cardio','strength','hiit'].forEach(type => {
+    if (!usedTypes.has(type)) return;
+    const s = sessions[type];
+    html += `<div class="session-item">
+      <div class="si-head">
+        <div class="si-title">${s.title}</div>
+        <div class="si-meta">${s.meta}</div>
+      </div>
+      <div class="si-body">${s.body}</div>
+      <div class="si-note">${s.note}</div>
+    </div>`;
+  });
+
+  // 休息日
+  html += `<div class="session-item">
+    <div class="si-head">
+      <div class="si-title">${sessions.rest.title}</div>
+      <div class="si-meta">${sessions.rest.meta}</div>
+    </div>
+    <div class="si-body">${sessions.rest.body}</div>
+    <div class="si-note">${sessions.rest.note}</div>
+  </div>`;
+
+  html += `</div>`;
+
+  // 热量缺口提示
+  if (deficit > 0) {
+    html += `<div class="warn-box">
+      🎯 为达成每日约 <strong>${deficit} kcal</strong> 的热量缺口，你大约需要：
+      慢跑 <strong>${runMin} 分钟</strong>，或快走 <strong>${steps.toLocaleString()} 步</strong>。
+      建议把运动分散到每周训练日中，不要一次完成。
+    </div>`;
+  } else if (d.bmi < 18.5) {
+    html += `<div class="warn-box">
+      🍚 你偏瘦，不需要刻意制造热量缺口。运动以力量训练为主，有氧控制在每周 1–2 次，每次不超过 30 分钟。
+    </div>`;
+  } else {
+    html += `<div class="warn-box">
+      ⚖️ 你体重正常，运动目标是保持体能和肌肉线条。建议每周 150 分钟中等强度运动即可。
+    </div>`;
+  }
+
+  $('exercisePlan').innerHTML = html;
+}
 
 // ============================================================
 // ⑤ 营养相似度替换算法
@@ -792,21 +1117,13 @@ function generatePlan() {
   $('bmiTag2').style.color = d.color;
   $('bmiNote2').textContent = d.note;
 
-  const deficit = d.bmi>=24 ? 400 : d.bmi<18.5 ? 0 : 150;
-  const runMin = deficit>0 ? Math.round(deficit/(0.11*d.w)) : 0;
-  const steps = deficit>0 ? Math.round(deficit/(0.00045*d.w)) : 0;
-  const floors = deficit>0 ? Math.round(deficit/(0.017*d.w)) : 0;
-  $('exercise').innerHTML = `
-    <div class="ex-item"><div class="ex-val">${runMin}<small> 分钟</small></div><div class="ex-label">慢跑 🏃</div></div>
-    <div class="ex-item"><div class="ex-val">${steps.toLocaleString()}<small> 步</small></div><div class="ex-label">快走 🚶</div></div>
-    <div class="ex-item"><div class="ex-val">${floors}<small> 层</small></div><div class="ex-label">爬楼梯 🪜</div></div>`;
-
   $('dietNote').textContent =
     `基础代谢约 ${Math.round(d.bmr)} kcal，每日总消耗约 ${Math.round(d.tdee)} kcal，` +
     `建议摄入约 ${Math.round(target)} kcal` +
     (d.bmi>=24 ? '（已设约400kcal缺口）' : d.bmi<18.5 ? '（已增加300kcal）' : '（维持体重）') +
     (selectedTags.length ? `。已按营养相似度替换忌口食材：${selectedTags.join('、')}。` : '。');
 
+  renderExercisePlan();
   renderPlanOptions();
   saveCurrentPlan();
   renderFoodLog();
@@ -912,19 +1229,7 @@ function saveCurrentPlan() {
 }
 
 // ============================================================
-// ⑩ 运动科普 Tab
-// ============================================================
-document.querySelectorAll('#exSciTabs .ex-sci-tab').forEach(tab => {
-  tab.onclick = () => {
-    document.querySelectorAll('#exSciTabs .ex-sci-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    $('exSciContent').innerHTML = EX_SCIENCE[tab.dataset.tab] || '';
-  };
-});
-$('exSciContent').innerHTML = EX_SCIENCE.cardio;
-
-// ============================================================
-// ⑪ 单位切换
+// ⑩ 单位切换
 // ============================================================
 document.querySelectorAll('#unitToggle button').forEach(btn => {
   btn.onclick = () => {
@@ -957,7 +1262,7 @@ function findFoodKey(name) {
 }
 
 // ============================================================
-// ⑫ 食物热量估算
+// ⑪ 食物热量估算
 // ============================================================
 function estimateFood() {
   const name = $('foodName').value.trim();
@@ -1025,11 +1330,12 @@ function delFood(i) {
 }
 
 // ============================================================
-// ⑬ 导出
+// ⑫ 导出
 // ============================================================
 function buildPlanText() {
   if (!currentPlan) return '暂无方案，请先生成健康规划。';
   const p = currentPlan;
+  const d = currentData;
   const tagLine = p.dietTags.length ? `忌口：${p.dietTags.join('、')}（已按营养相似度替换）` : '忌口：无';
   let txt = `【青柠健康 · 饮食规划方案】\n生成时间：${p.date}\n\n`;
   txt += `— 身体数据 —\n身高：${p.height}cm  体重：${p.weight}kg\nBMI：${p.bmi}（${p.tag}）\n${tagLine}\n\n`;
@@ -1042,7 +1348,24 @@ function buildPlanText() {
     if (m.swaps.length) txt += `  已替换：${m.swaps.map(s => `${s.from}→${s.to}（营养距离${s.distance}）`).join('、')}\n`;
     txt += '\n';
   });
-  txt += `— 运动建议 —\n慢跑：${p.exercise.run} 分钟\n快走：${p.exercise.steps} 步\n爬楼梯：${p.exercise.floors} 层\n\n`;
+
+  // 个性化运动方案
+  if (d) {
+    const activity = parseFloat(d.activity);
+    const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
+    const goal = getBmiGoal(d.bmi);
+    const schedule = buildWeeklySchedule(goal.key, levelInfo.level);
+
+    txt += `— 专属运动方案 —\n`;
+    txt += `类型：${goal.label} · ${levelInfo.label}\n`;
+    txt += `${goal.desc}\n\n`;
+    txt += `每周安排：\n`;
+    schedule.forEach(s => {
+      txt += `  ${s.day}：${s.label} ${s.type !== 'rest' ? s.icon : ''}\n`;
+    });
+    txt += `\n`;
+  }
+
   txt += `— 说明 —\n本方案所有建议仅作为参考，请结合自身情况调整。\n`;
   return txt;
 }
@@ -1083,7 +1406,7 @@ function downloadPlan() {
 }
 
 // ============================================================
-// ⑭ 历史
+// ⑬ 历史
 // ============================================================
 function saveHistory(entry) {
   const list = store.get('history', []);
@@ -1124,7 +1447,7 @@ function clearHistory() {
 }
 
 // ============================================================
-// ⑮ 启动
+// ⑭ 启动
 // ============================================================
 window.addEventListener('load', async () => {
   await loadFoodDB();
