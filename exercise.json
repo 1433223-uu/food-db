@@ -1,0 +1,55 @@
+{
+  "templates": {
+    "underweight": {
+      "1": ["strength","rest","cardio","rest","strength","rest","rest"],
+      "2": ["strength","cardio","rest","strength","rest","cardio","rest"],
+      "3": ["strength","cardio","strength","rest","strength","cardio","rest"],
+      "4": ["strength","cardio","strength","rest","strength","cardio","strength"]
+    },
+    "normal": {
+      "1": ["cardio","rest","strength","rest","cardio","rest","rest"],
+      "2": ["cardio","strength","rest","cardio","strength","rest","rest"],
+      "3": ["cardio","strength","rest","cardio","strength","cardio","rest"],
+      "4": ["cardio","strength","hiit","rest","strength","cardio","strength"]
+    },
+    "overweight": {
+      "1": ["cardio","rest","strength","rest","cardio","rest","rest"],
+      "2": ["cardio","strength","rest","cardio","strength","cardio","rest"],
+      "3": ["cardio","strength","hiit","rest","cardio","strength","cardio"],
+      "4": ["cardio","strength","hiit","cardio","strength","hiit","cardio"]
+    },
+    "obese": {
+      "1": ["cardio","rest","cardio","rest","strength","rest","rest"],
+      "2": ["cardio","rest","cardio","strength","rest","cardio","rest"],
+      "3": ["cardio","strength","cardio","rest","cardio","strength","cardio"],
+      "4": ["cardio","strength","cardio","hiit","cardio","strength","cardio"]
+    }
+  },
+  "details": {
+    "obese": {
+      "cardio": { "title":"低冲击有氧（保护关节）", "meta":"40–50 分钟", "calPerMin":8, "body":"<ul><li><strong>快走：</strong>速度 5–6 km/h，40 分钟</li><li><strong>椭圆机：</strong>阻力适中，40 分钟</li><li><strong>游泳 / 水中走：</strong>30–40 分钟</li><li><strong>固定自行车：</strong>40 分钟</li></ul>", "note":"⚠️ 避免跑步、跳绳等高冲击动作。" },
+      "strength": { "title":"坐姿 / 器械力量（安全增肌）", "meta":"25–35 分钟", "calPerMin":5, "body":"<ul><li><strong>坐姿腿举：</strong>3 组 × 12 次</li><li><strong>坐姿推胸：</strong>3 组 × 12 次</li><li><strong>坐姿划船：</strong>3 组 × 12 次</li><li><strong>臀桥：</strong>3 组 × 15 次</li></ul>", "note":"⚠️ 避免站姿自由重量深蹲、硬拉。" },
+      "hiit": { "title":"低冲击 HIIT", "meta":"15 分钟", "calPerMin":10, "body":"<ul><li><strong>快走冲刺 + 慢走：</strong>30 秒快 + 60 秒慢 × 8 轮</li><li><strong>椭圆机冲刺：</strong>20 秒快 + 40 秒慢 × 8 轮</li></ul>", "note":"⚠️ 不要做波比跳、开合跳。" }
+    },
+    "overweight": {
+      "cardio": { "title":"中低强度有氧（燃脂为主）", "meta":"40–60 分钟", "calPerMin":10, "body":"<ul><li><strong>慢跑：</strong>6–8 km/h，40 分钟</li><li><strong>快走 + 坡度：</strong>坡度 5%–8%，45 分钟</li><li><strong>动感单车：</strong>45 分钟</li><li><strong>游泳：</strong>40 分钟</li></ul>", "note":"💡 有氧安排在力量训练之后，燃脂效率更高。" },
+      "strength": { "title":"保肌力量训练（复合动作）", "meta":"30–40 分钟", "calPerMin":6, "body":"<ul><li><strong>深蹲：</strong>3 组 × 12 次（轻重量）</li><li><strong>俯卧撑：</strong>3 组 × 10–12 次</li><li><strong>哑铃划船：</strong>3 组 × 12 次</li><li><strong>臀桥：</strong>3 组 × 15 次</li></ul>", "note":"💡 减脂期力量训练目的是保住肌肉。" },
+      "hiit": { "title":"标准 HIIT（燃脂）", "meta":"15–20 分钟", "calPerMin":13, "body":"<ul><li><strong>开合跳：</strong>30 秒 × 6 组</li><li><strong>高抬腿：</strong>30 秒 × 6 组</li><li><strong>波比跳：</strong>20 秒 × 6 组</li></ul>", "note":"💡 每组之间休息 30 秒。" }
+    },
+    "normal": {
+      "cardio": { "title":"中等强度有氧（保持心肺）", "meta":"30–45 分钟", "calPerMin":11, "body":"<ul><li><strong>慢跑：</strong>8–10 km/h，30–40 分钟</li><li><strong>骑行：</strong>45 分钟</li><li><strong>跳绳：</strong>每组 2 分钟 × 8 组</li><li><strong>爬楼梯：</strong>20–30 层</li></ul>", "note":"✅ 你体重正常，可以放心做各种有氧运动。" },
+      "strength": { "title":"常规力量训练（塑形）", "meta":"40–50 分钟", "calPerMin":7, "body":"<ul><li><strong>深蹲：</strong>4 组 × 10–12 次</li><li><strong>俯卧撑 / 卧推：</strong>4 组 × 12 次</li><li><strong>弓步蹲：</strong>3 组 × 每侧 12 次</li><li><strong>平板支撑：</strong>3 组 × 45 秒</li></ul>", "note":"💡 组间休息 60–90 秒。" },
+      "hiit": { "title":"进阶 HIIT（提升体能）", "meta":"15–20 分钟", "calPerMin":14, "body":"<ul><li><strong>波比跳：</strong>30 秒 × 8 组</li><li><strong>深蹲跳：</strong>30 秒 × 6 组</li><li><strong>高抬腿：</strong>30 秒 × 6 组</li></ul>", "note":"💡 组间休息 20–30 秒。" }
+    },
+    "underweight": {
+      "cardio": { "title":"轻度有氧（避免过度消耗）", "meta":"20–30 分钟", "calPerMin":7, "body":"<ul><li><strong>快走：</strong>20–30 分钟</li><li><strong>慢速骑行：</strong>20 分钟</li><li><strong>跳绳：</strong>每组 1 分钟 × 5 组</li></ul>", "note":"⚠️ 你偏瘦，有氧不宜过多。" },
+      "strength": { "title":"增肌力量训练（大重量低次数）", "meta":"45–60 分钟", "calPerMin":6, "body":"<ul><li><strong>深蹲：</strong>4 组 × 8–10 次</li><li><strong>硬拉：</strong>4 组 × 6–8 次</li><li><strong>卧推：</strong>4 组 × 8–10 次</li><li><strong>引体向上：</strong>4 组 × 8–10 次</li></ul>", "note":"💡 组间休息 90–120 秒。" },
+      "hiit": { "title":"轻量 HIIT", "meta":"10–15 分钟", "calPerMin":11, "body":"<ul><li><strong>开合跳：</strong>30 秒 × 5 组</li><li><strong>高抬腿：</strong>30 秒 × 5 组</li></ul>", "note":"⚠️ 偏瘦人群不要频繁做 HIIT。" }
+    }
+  },
+  "rest": {
+    "title":"休息与恢复", "meta":"主动恢复",
+    "body":"<ul><li><strong>拉伸：</strong>全身静态拉伸 10–15 分钟</li><li><strong>散步：</strong>轻松散步 20–30 分钟</li><li><strong>睡眠：</strong>保证 7–9 小时</li><li><strong>补水：</strong>每天 1.5–2L 水</li></ul>",
+    "note":"💡 恢复做得好，下次训练表现更强。"
+  }
+}
