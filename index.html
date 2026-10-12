@@ -8,7 +8,7 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --green: #43a047; --green-dark: #2e7d32; --green-light: #e8f5e9;
-    --mint: #b2dfdb; --bg1: #e8f5e9; --bg2: #e0f2f1;
+    --bg1: #e8f5e9; --bg2: #e0f2f1;
     --text: #2e3d2f; --muted: #7a8a7b;
   }
   body {
@@ -155,7 +155,6 @@
   .db-bar { text-align:center; margin-bottom:14px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap; }
   .db-bar button { width:auto; padding:6px 16px; font-size:12px; margin:0; }
 
-  /* 个性化运动卡片 */
   .plan-banner { display:flex; align-items:center; gap:14px; padding:16px;
     background:linear-gradient(135deg,#e8f5e9,#e0f2f1); border-radius:14px; margin-bottom:16px; }
   .plan-banner .pb-icon { font-size:36px; }
@@ -188,6 +187,8 @@
 
   .warn-box { background:#fff3e0; border-left:3px solid #fb8c00; padding:12px 14px;
     border-radius:0 10px 10px 0; font-size:12px; color:#8a5a00; line-height:1.7; margin-top:12px; }
+  .compare-box { background:#e3f2fd; border-left:3px solid #42a5f5; padding:12px 14px;
+    border-radius:0 10px 10px 0; font-size:12px; color:#0d47a1; line-height:1.7; margin-bottom:12px; }
 </style>
 </head>
 <body>
@@ -287,6 +288,7 @@
         <div class="bmi-tag" id="bmiTag2"></div>
       </div>
       <p class="note" id="bmiNote2"></p>
+      <div id="compareBox"></div>
     </div>
 
     <div class="card">
@@ -296,7 +298,7 @@
       </div>
       <div id="meals" style="margin-top:12px"></div>
       <p class="note" id="dietNote"></p>
-      <p class="note" style="color:#fb8c00">💡 若提示已替换，可点击下方方案标签切换不同的替代组合</p>
+      <p class="note" style="color:#fb8c00">💡 每餐热量根据实际食材克数累加，已按你的忌口自动替换</p>
     </div>
 
     <div class="card">
@@ -346,6 +348,8 @@
       <div class="btn-row">
         <button class="small ghost" onclick="copyPlan()">📋 复制文本</button>
         <button class="small ghost" onclick="downloadPlan()">⬇️ 下载 TXT</button>
+        <button class="small ghost" onclick="exportUserData()">💾 导出数据</button>
+        <button class="small ghost" onclick="importUserData()">📥 导入数据</button>
       </div>
       <div class="export-box" id="exportBox"></div>
     </div>
@@ -380,88 +384,157 @@
 
 <script>
 // ============================================================
-// ① 联网加载食物库（多源自动切换）
+// ① 多源加载（食物库 + 三餐库 + 运动库）
 // ============================================================
-const FOOD_DB_SOURCES = [
-  './foods.json',
-  'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/foods.json',
-  'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json'
-];
-const CACHE_KEY = 'food_db_cache_v4';
+const SOURCES = {
+  foods: [
+    './foods.json',
+    'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/foods.json',
+    'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json'
+  ],
+  meals: [
+    './meals.json',
+    'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/meals.json',
+    'https://raw.githubusercontent.com/1433223-uu/food-db/main/meals.json'
+  ],
+  exercise: [
+    './exercise.json',
+    'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/exercise.json',
+    'https://raw.githubusercontent.com/1433223-uu/food-db/main/exercise.json'
+  ]
+};
+const CACHE_KEY = 'food_db_cache_v5';
+const CACHE_KEY_MEALS = 'meals_cache_v1';
+const CACHE_KEY_EX = 'exercise_cache_v1';
 const CACHE_TIME = 1000 * 60 * 10;
 
+// 食物库兜底
 const FOOD_DB_FALLBACK = {
   '米饭':   { kcal:116, p:2.6, f:0.3, c:25.9, cat:'主食', serving:{name:'碗',gram:200}, sci:'主要提供碳水化合物，是身体最直接的能量来源。' },
   '鸡胸肉': { kcal:165, p:31,  f:3.6, c:0,    cat:'蛋白质', serving:{name:'块',gram:120}, sci:'高蛋白低脂肪，有助于肌肉修复。' },
-  '芹菜':   { kcal:14,  p:0.7, f:0.2, c:3,    cat:'蔬菜', serving:{name:'根',gram:100}, sci:'富含膳食纤维和钾，帮助消化，有一定降压作用。' },
+  '芹菜':   { kcal:14,  p:0.7, f:0.2, c:3,    cat:'蔬菜', serving:{name:'根',gram:100}, sci:'富含膳食纤维和钾，帮助消化。' },
   '苹果':   { kcal:52,  p:0.3, f:0.2, c:14,   cat:'水果', serving:{name:'个',gram:180}, sci:'含果胶和抗氧化物质，有助肠道健康。' },
   '橄榄油': { kcal:884, p:0,   f:100, c:0,    cat:'油脂', serving:{name:'勺',gram:10}, sci:'富含单不饱和脂肪酸，有助心血管健康。' }
 };
 
+// 三餐库兜底（简化版）
+const MEALS_FALLBACK = {
+  breakfast: [
+    { name:"燕麦牛奶碗", items:[{food:"燕麦",g:40},{food:"脱脂牛奶",g:250},{food:"水煮蛋",g:50}] },
+    { name:"全麦三明治", items:[{food:"全麦面包",g:70},{food:"鸡胸肉",g:50},{food:"无糖豆浆",g:300}] }
+  ],
+  lunch: [
+    { name:"鸡胸糙米饭", items:[{food:"糙米饭",g:150},{food:"鸡胸肉",g:150},{food:"西兰花",g:200}] },
+    { name:"清蒸鱼套餐", items:[{food:"杂粮饭",g:150},{food:"鲈鱼",g:150},{food:"青菜",g:200}] }
+  ],
+  dinner: [
+    { name:"轻食沙拉", items:[{food:"鸡胸肉",g:100},{food:"生菜",g:200}] },
+    { name:"杂蔬豆腐煲", items:[{food:"嫩豆腐",g:150},{food:"杂粮饭",g:80}] }
+  ]
+};
+
+// 运动库兜底
+const EXERCISE_FALLBACK = {
+  templates: {
+    underweight: {1:['strength','rest','cardio','rest','strength','rest','rest'],2:['strength','cardio','rest','strength','rest','cardio','rest'],3:['strength','cardio','strength','rest','strength','cardio','rest'],4:['strength','cardio','strength','rest','strength','cardio','strength']},
+    normal: {1:['cardio','rest','strength','rest','cardio','rest','rest'],2:['cardio','strength','rest','cardio','strength','rest','rest'],3:['cardio','strength','rest','cardio','strength','cardio','rest'],4:['cardio','strength','hiit','rest','strength','cardio','strength']},
+    overweight: {1:['cardio','rest','strength','rest','cardio','rest','rest'],2:['cardio','strength','rest','cardio','strength','cardio','rest'],3:['cardio','strength','hiit','rest','cardio','strength','cardio'],4:['cardio','strength','hiit','cardio','strength','hiit','cardio']},
+    obese: {1:['cardio','rest','cardio','rest','strength','rest','rest'],2:['cardio','rest','cardio','strength','rest','cardio','rest'],3:['cardio','strength','cardio','rest','cardio','strength','cardio'],4:['cardio','strength','cardio','hiit','cardio','strength','cardio']}
+  },
+  details: {
+    obese: {
+      cardio:{title:'低冲击有氧',meta:'40分钟',calPerMin:8,body:'<ul><li>快走 40 分钟</li><li>椭圆机 40 分钟</li><li>游泳 30 分钟</li></ul>',note:'⚠️ 避免高冲击动作'},
+      strength:{title:'坐姿器械力量',meta:'30分钟',calPerMin:5,body:'<ul><li>坐姿腿举 3×12</li><li>坐姿推胸 3×12</li><li>臀桥 3×15</li></ul>',note:'⚠️ 避免站姿自由重量'},
+      hiit:{title:'低冲击 HIIT',meta:'15分钟',calPerMin:10,body:'<ul><li>快走冲刺 30s×8</li><li>椭圆机冲刺 20s×8</li></ul>',note:'⚠️ 不要做波比跳'}
+    },
+    overweight: {
+      cardio:{title:'中低强度有氧',meta:'45分钟',calPerMin:10,body:'<ul><li>慢跑 40 分钟</li><li>动感单车 45 分钟</li><li>游泳 40 分钟</li></ul>',note:'💡 有氧放在力量之后'},
+      strength:{title:'保肌力量训练',meta:'35分钟',calPerMin:6,body:'<ul><li>深蹲 3×12</li><li>俯卧撑 3×12</li><li>哑铃划船 3×12</li></ul>',note:'💡 保住肌肉'},
+      hiit:{title:'标准 HIIT',meta:'18分钟',calPerMin:13,body:'<ul><li>开合跳 30s×6</li><li>高抬腿 30s×6</li><li>波比跳 20s×6</li></ul>',note:'💡 组间休息30秒'}
+    },
+    normal: {
+      cardio:{title:'中等强度有氧',meta:'40分钟',calPerMin:11,body:'<ul><li>慢跑 35 分钟</li><li>骑行 45 分钟</li><li>跳绳 8组</li></ul>',note:'✅ 可以放心做各种有氧'},
+      strength:{title:'常规力量训练',meta:'45分钟',calPerMin:7,body:'<ul><li>深蹲 4×12</li><li>卧推 4×12</li><li>平板支撑 3×45s</li></ul>',note:'💡 注重动作质量'},
+      hiit:{title:'进阶 HIIT',meta:'18分钟',calPerMin:14,body:'<ul><li>波比跳 30s×8</li><li>深蹲跳 30s×6</li><li>高抬腿 30s×6</li></ul>',note:'💡 充分热身'}
+    },
+    underweight: {
+      cardio:{title:'轻度有氧',meta:'25分钟',calPerMin:7,body:'<ul><li>快走 25 分钟</li><li>慢速骑行 20 分钟</li></ul>',note:'⚠️ 有氧不宜过多'},
+      strength:{title:'增肌力量训练',meta:'50分钟',calPerMin:6,body:'<ul><li>深蹲 4×8-10</li><li>硬拉 4×6-8</li><li>卧推 4×8-10</li></ul>',note:'💡 组间休息90-120秒'},
+      hiit:{title:'轻量 HIIT',meta:'12分钟',calPerMin:11,body:'<ul><li>开合跳 30s×5</li><li>高抬腿 30s×5</li></ul>',note:'⚠️ 不要频繁做'}
+    }
+  },
+  rest: {title:'休息与恢复',meta:'主动恢复',body:'<ul><li>拉伸 10-15 分钟</li><li>散步 20-30 分钟</li><li>睡眠 7-9 小时</li></ul>',note:'💡 恢复好下次更强'}
+};
+
 let FOOD_DB = {};
+let MEALS_DB = {};
+let EXERCISE_DB = {};
 let foodDbStatus = 'loading';
-let foodDbSource = '';
 
 async function tryFetchSource(url) {
   const sep = url.includes('?') ? '&' : '?';
   const res = await fetch(url + sep + 't=' + Date.now(), { cache: 'no-store' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
-  const data = await res.json();
-  const count = Object.keys(data).length;
-  if (count < 6) throw new Error('数据异常，仅 ' + count + ' 条');
-  return data;
+  return await res.json();
 }
 
-async function loadFoodDB(forceOnline = false) {
+async function loadMultiSource(sources, cacheKey, fallback, validate) {
+  // 先看缓存
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached && Date.now() - cached.time < CACHE_TIME) {
+      if (validate(cached.data)) return { data: cached.data, status: 'cache' };
+    }
+  } catch {}
+
+  // 依次尝试
+  for (const url of sources) {
+    try {
+      const data = await tryFetchSource(url);
+      if (!validate(data)) throw new Error('数据校验失败');
+      localStorage.setItem(cacheKey, JSON.stringify({ time: Date.now(), data }));
+      return { data, status: 'online' };
+    } catch (e) {
+      console.warn('源失败：', url, e.message);
+    }
+  }
+
+  // 降级
+  try {
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+    if (cached && validate(cached.data)) return { data: cached.data, status: 'cache' };
+  } catch {}
+
+  return { data: fallback, status: 'fallback' };
+}
+
+async function loadAllData(forceOnline = false) {
   foodDbStatus = 'loading';
   updateDbStatusUI();
 
-  if (!forceOnline) {
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-      if (cached && Date.now() - cached.time < CACHE_TIME) {
-        FOOD_DB = cached.data;
-        foodDbSource = cached.source || '缓存';
-        foodDbStatus = 'cache';
-        updateDbStatusUI();
-        return;
-      }
-    } catch {}
+  if (forceOnline) {
+    [CACHE_KEY, CACHE_KEY_MEALS, CACHE_KEY_EX].forEach(k => localStorage.removeItem(k));
   }
 
-  let lastErr = null;
-  for (const url of FOOD_DB_SOURCES) {
-    try {
-      const data = await tryFetchSource(url);
-      FOOD_DB = data;
-      foodDbSource = url;
-      foodDbStatus = 'online';
-      localStorage.setItem(CACHE_KEY, JSON.stringify({
-        time: Date.now(), data, source: url
-      }));
-      updateDbStatusUI();
-      return;
-    } catch (e) {
-      console.warn('源失败：', url, e.message);
-      lastErr = e;
-    }
-  }
+  const foodsResult = await loadMultiSource(
+    SOURCES.foods, CACHE_KEY, FOOD_DB_FALLBACK,
+    d => Object.keys(d).length >= 6
+  );
+  FOOD_DB = foodsResult.data;
 
-  console.warn('所有源都失败：', lastErr);
-  try {
-    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-    if (cached) {
-      FOOD_DB = cached.data;
-      foodDbSource = cached.source || '缓存';
-      foodDbStatus = 'cache';
-    } else {
-      throw new Error('无缓存');
-    }
-  } catch {
-    FOOD_DB = FOOD_DB_FALLBACK;
-    foodDbSource = '内置';
-    foodDbStatus = 'fallback';
-  }
+  const mealsResult = await loadMultiSource(
+    SOURCES.meals, CACHE_KEY_MEALS, MEALS_FALLBACK,
+    d => d.breakfast && d.lunch && d.dinner
+  );
+  MEALS_DB = mealsResult.data;
+
+  const exResult = await loadMultiSource(
+    SOURCES.exercise, CACHE_KEY_EX, EXERCISE_FALLBACK,
+    d => d.templates && d.details && d.rest
+  );
+  EXERCISE_DB = exResult.data;
+
+  foodDbStatus = foodsResult.status;
   updateDbStatusUI();
 }
 
@@ -470,34 +543,28 @@ function updateDbStatusUI() {
   const map = {
     online:   { text:`🟢 食材库已联网更新（${count} 种）`, color:'#43a047' },
     cache:    { text:`🟡 使用本地缓存（${count} 种）`, color:'#fb8c00' },
-    fallback: { text:'🔴 网络异常，使用基础数据（5 种）', color:'#e53935' },
+    fallback: { text:'🔴 网络异常，使用基础数据', color:'#e53935' },
     loading:  { text:'⏳ 正在加载食材库...', color:'#7a8a7b' }
   };
   const s = map[foodDbStatus];
   const el = document.getElementById('dbStatus');
-  if (el) {
-    el.textContent = s.text;
-    el.style.color = s.color;
-  }
+  if (el) { el.textContent = s.text; el.style.color = s.color; }
 }
 
 async function refreshFoodDB() {
-  localStorage.removeItem(CACHE_KEY);
-  FOOD_DB = {};
-  await loadFoodDB(true);
+  await loadAllData(true);
   const el = document.getElementById('foodList');
   if (el) el.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
-  alert('✅ 食材库已刷新，共 ' + Object.keys(FOOD_DB).length + ' 种');
+  alert('✅ 已刷新，食物 ' + Object.keys(FOOD_DB).length + ' 种');
 }
 
 async function hardResetDB() {
-  ['food_db_cache_v1','food_db_cache_v2','food_db_cache_v3','food_db_cache_v4']
+  ['food_db_cache_v1','food_db_cache_v2','food_db_cache_v3','food_db_cache_v4','food_db_cache_v5','meals_cache_v1','exercise_cache_v1']
     .forEach(k => localStorage.removeItem(k));
-  FOOD_DB = {};
-  await loadFoodDB(true);
+  await loadAllData(true);
   const el = document.getElementById('foodList');
   if (el) el.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
-  alert('💥 已强制清缓存并重载，共 ' + Object.keys(FOOD_DB).length + ' 种');
+  alert('💥 已强制重载');
 }
 
 // ============================================================
@@ -516,43 +583,8 @@ const DIET_EXCLUDE = {
 };
 
 // ============================================================
-// ③ 三餐库
+// ③ 活动量等级
 // ============================================================
-const MEALS = {
-  breakfast: [
-    { name:"燕麦牛奶碗", desc:"燕麦40g + 脱脂牛奶250ml + 蓝莓50g + 水煮蛋1个", ingredients:['燕麦','脱脂牛奶','蓝莓','水煮蛋'] },
-    { name:"全麦三明治", desc:"全麦面包2片 + 鸡胸肉50g + 生菜番茄 + 无糖豆浆300ml", ingredients:['全麦面包','鸡胸肉','生菜','番茄','无糖豆浆'] },
-    { name:"杂粮粥套餐", desc:"杂粮饭1碗 + 水煮蛋1个 + 凉拌菠菜 + 小番茄", ingredients:['杂粮饭','水煮蛋','菠菜','番茄'] },
-    { name:"希腊酸奶碗", desc:"无糖希腊酸奶200g + 燕麦30g + 香蕉半根 + 坚果10g", ingredients:['希腊酸奶','燕麦','香蕉','坚果'] },
-    { name:"豆浆馒头套餐", desc:"无糖豆浆300ml + 全麦馒头1个 + 水煮蛋1个 + 黄瓜", ingredients:['无糖豆浆','馒头','水煮蛋','黄瓜'] },
-    { name:"水果燕麦杯", desc:"燕麦40g + 豆奶250ml + 苹果半个 + 核桃10g", ingredients:['燕麦','豆奶','苹果','核桃'] }
-  ],
-  lunch: [
-    { name:"鸡胸糙米饭", desc:"糙米饭150g + 煎鸡胸150g + 西兰花200g + 橄榄油5g", ingredients:['糙米饭','鸡胸肉','西兰花','橄榄油'] },
-    { name:"清蒸鱼套餐", desc:"杂粮饭150g + 清蒸鲈鱼150g + 炒时蔬200g", ingredients:['杂粮饭','鲈鱼','青菜'] },
-    { name:"牛肉荞麦面", desc:"荞麦面100g + 瘦牛肉100g + 青菜200g + 少油汤底", ingredients:['荞麦面','瘦牛肉','青菜'] },
-    { name:"豆腐鸡丁饭", desc:"米饭120g + 豆腐100g + 鸡丁80g + 双拼蔬菜", ingredients:['米饭','豆腐','鸡肉','白菜'] },
-    { name:"番茄虾仁意面", desc:"全麦意面100g + 虾仁120g + 番茄酱 + 蔬菜", ingredients:['意面','虾仁','番茄'] },
-    { name:"素食藜麦碗", desc:"藜麦150g + 鹰嘴豆80g + 烤蔬菜 + 橄榄油5g", ingredients:['藜麦','鹰嘴豆','胡萝卜'] },
-    { name:"猪肉白菜饭", desc:"米饭120g + 瘦猪肉100g + 白菜200g + 木耳", ingredients:['米饭','瘦猪肉','白菜','木耳'] },
-    { name:"芹菜炒鸡胸饭", desc:"糙米饭120g + 鸡胸120g + 芹菜200g + 胡萝卜", ingredients:['糙米饭','鸡胸肉','芹菜','胡萝卜'] }
-  ],
-  dinner: [
-    { name:"轻食沙拉", desc:"鸡胸100g + 混合生菜200g + 圣女果 + 油醋汁（少油）", ingredients:['鸡胸肉','生菜','圣女果'] },
-    { name:"虾仁蔬菜汤", desc:"虾仁100g + 番茄菌菇汤 + 玉米半根 + 凉拌黄瓜", ingredients:['虾仁','番茄','蘑菇','玉米'] },
-    { name:"清蒸鸡腿", desc:"去皮鸡腿120g + 蒸南瓜150g + 白灼芥蓝200g", ingredients:['鸡腿','南瓜','芥蓝'] },
-    { name:"杂蔬豆腐煲", desc:"嫩豆腐150g + 木耳胡萝卜 + 杂粮饭80g", ingredients:['嫩豆腐','木耳','胡萝卜'] },
-    { name:"香煎三文鱼", desc:"三文鱼120g + 芦笋200g + 小份糙米饭80g", ingredients:['三文鱼','芦笋','糙米饭'] },
-    { name:"牛肉蔬菜卷", desc:"瘦牛肉100g + 生菜卷 + 紫甘蓝 + 小份藜麦", ingredients:['瘦牛肉','生菜','紫甘蓝'] },
-    { name:"芹菜木耳豆腐", desc:"嫩豆腐120g + 芹菜150g + 木耳50g + 杂粮饭80g", ingredients:['嫩豆腐','芹菜','木耳'] }
-  ]
-};
-
-// ============================================================
-// ④ 个性化运动方案引擎
-// ============================================================
-
-// 活动量等级 -> 每周训练天数
 const ACTIVITY_LEVELS = {
   1.2:   { key:'sedentary', label:'久坐型',   days:3, level:1 },
   1.375: { key:'light',     label:'轻度活动', days:3, level:2 },
@@ -560,362 +592,15 @@ const ACTIVITY_LEVELS = {
   1.725: { key:'high',      label:'高度活动', days:5, level:4 }
 };
 
-// BMI 分类 -> 目标
 function getBmiGoal(bmi) {
-  if (bmi < 18.5) return {
-    key:'underweight', label:'增重增肌',
-    icon:'🍚',
-    desc:'你的体重偏低，重点是通过力量训练增肌，配合充足热量摄入。有氧运动不宜过多，避免消耗过多热量。'
-  };
-  if (bmi < 24) return {
-    key:'normal', label:'保持体能',
-    icon:'⚖️',
-    desc:'你的体重在健康范围，目标是维持体能、增强肌肉线条。力量和有氧均衡搭配。'
-  };
-  if (bmi < 28) return {
-    key:'overweight', label:'减脂塑形',
-    icon:'🔥',
-    desc:'你的体重偏高，重点是制造热量缺口。以中低强度有氧为主，配合力量训练保住肌肉。'
-  };
-  return {
-    key:'obese', label:'安全减重',
-    icon:'🛡️',
-    desc:'你的体重明显偏高，初期以低冲击有氧为主，保护膝盖和关节，逐步加入力量训练。'
-  };
-}
-
-// 根据 BMI 分类 + 活动等级，返回每周训练安排
-function buildWeeklySchedule(bmiGoalKey, activityLevel) {
-  // 7 天安排，每项是 {type, label, icon}
-  // type: rest / cardio / strength / hiit / mix
-  const templates = {
-    // 增重增肌：力量为主，有氧少
-    underweight: {
-      1: ['strength','rest','cardio','rest','strength','rest','rest'],
-      2: ['strength','cardio','rest','strength','rest','cardio','rest'],
-      3: ['strength','cardio','strength','rest','strength','cardio','rest'],
-      4: ['strength','cardio','strength','rest','strength','cardio','strength']
-    },
-    // 保持体能：力量有氧均衡
-    normal: {
-      1: ['cardio','rest','strength','rest','cardio','rest','rest'],
-      2: ['cardio','strength','rest','cardio','strength','rest','rest'],
-      3: ['cardio','strength','rest','cardio','strength','cardio','rest'],
-      4: ['cardio','strength','hiit','rest','strength','cardio','strength']
-    },
-    // 减脂塑形：有氧+HIIT 为主，力量保肌
-    overweight: {
-      1: ['cardio','rest','strength','rest','cardio','rest','rest'],
-      2: ['cardio','strength','rest','cardio','strength','cardio','rest'],
-      3: ['cardio','strength','hiit','rest','cardio','strength','cardio'],
-      4: ['cardio','strength','hiit','cardio','strength','hiit','cardio']
-    },
-    // 安全减重：低冲击有氧为主
-    obese: {
-      1: ['cardio','rest','cardio','rest','strength','rest','rest'],
-      2: ['cardio','rest','cardio','strength','rest','cardio','rest'],
-      3: ['cardio','strength','cardio','rest','cardio','strength','cardio'],
-      4: ['cardio','strength','cardio','hiit','cardio','strength','cardio']
-    }
-  };
-
-  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
-  const typeMap = {
-    rest:     { icon:'😴', label:'休息',   cls:'rest' },
-    cardio:   { icon:'🏃', label:'有氧',   cls:'cardio' },
-    strength: { icon:'🏋️', label:'力量',   cls:'strength' },
-    hiit:     { icon:'⚡', label:'HIIT',   cls:'hi' }
-  };
-
-  const arr = templates[bmiGoalKey][activityLevel];
-  return arr.map((t, i) => ({
-    day: dayNames[i],
-    type: t,
-    ...typeMap[t]
-  }));
-}
-
-// 根据 BMI 分类 + 活动等级，返回具体运动项目说明
-function buildSessionDetails(bmiGoalKey, activityLevel) {
-  const sessions = {};
-
-  // ===== 有氧运动 =====
-  if (bmiGoalKey === 'obese') {
-    // 肥胖：低冲击，保护关节
-    sessions.cardio = {
-      title: '低冲击有氧（保护关节）',
-      meta: '40–50 分钟',
-      body: `<ul>
-        <li><strong>快走：</strong>速度 5–6 km/h，40 分钟，心率控制在最大心率 55%–65%</li>
-        <li><strong>椭圆机：</strong>阻力适中，40 分钟，对膝盖几乎无冲击</li>
-        <li><strong>游泳 / 水中走：</strong>30–40 分钟，水的浮力减轻关节压力</li>
-        <li><strong>固定自行车：</strong>40 分钟，坐姿骑行，保护膝盖</li>
-      </ul>`,
-      note: '⚠️ 避免跑步、跳绳、深蹲跳等高冲击动作，等体重下降后再逐步加入。'
-    };
-  } else if (bmiGoalKey === 'overweight') {
-    sessions.cardio = {
-      title: '中低强度有氧（燃脂为主）',
-      meta: '40–60 分钟',
-      body: `<ul>
-        <li><strong>慢跑：</strong>6–8 km/h，40 分钟，心率 60%–70%</li>
-        <li><strong>快走 + 坡度：</strong>跑步机坡度 5%–8%，45 分钟</li>
-        <li><strong>动感单车：</strong>45 分钟，中低阻力持续骑行</li>
-        <li><strong>游泳：</strong>40 分钟，自由泳 / 蛙泳交替</li>
-      </ul>`,
-      note: '💡 有氧安排在力量训练之后，燃脂效率更高。'
-    };
-  } else if (bmiGoalKey === 'normal') {
-    sessions.cardio = {
-      title: '中等强度有氧（保持心肺）',
-      meta: '30–45 分钟',
-      body: `<ul>
-        <li><strong>慢跑：</strong>8–10 km/h，30–40 分钟</li>
-        <li><strong>骑行：</strong>户外或动感单车，45 分钟</li>
-        <li><strong>跳绳：</strong>分组进行，每组 2 分钟 × 8 组</li>
-        <li><strong>爬楼梯：</strong>20–30 层，心率 65%–75%</li>
-      </ul>`,
-      note: '✅ 你体重正常，可以放心做各种有氧运动。'
-    };
-  } else {
-    // 偏瘦：有氧少而精
-    sessions.cardio = {
-      title: '轻度有氧（避免过度消耗）',
-      meta: '20–30 分钟',
-      body: `<ul>
-        <li><strong>快走：</strong>20–30 分钟，心率 55%–65%</li>
-        <li><strong>慢速骑行：</strong>20 分钟，轻松节奏</li>
-        <li><strong>跳绳：</strong>短时分组，每组 1 分钟 × 5 组</li>
-      </ul>`,
-      note: '⚠️ 你偏瘦，有氧不宜过多，否则会消耗增肌所需的热量。'
-    };
-  }
-
-  // ===== 力量训练 =====
-  if (bmiGoalKey === 'underweight') {
-    sessions.strength = {
-      title: '增肌力量训练（大重量低次数）',
-      meta: '45–60 分钟',
-      body: `<ul>
-        <li><strong>深蹲：</strong>4 组 × 8–10 次，负重逐渐增加</li>
-        <li><strong>硬拉：</strong>4 组 × 6–8 次</li>
-        <li><strong>卧推：</strong>4 组 × 8–10 次</li>
-        <li><strong>划船：</strong>4 组 × 10 次</li>
-        <li><strong>引体向上 / 高位下拉：</strong>4 组 × 8–10 次</li>
-      </ul>`,
-      note: '💡 组间休息 90–120 秒，训练后 30 分钟内补充蛋白质。'
-    };
-  } else if (bmiGoalKey === 'normal') {
-    sessions.strength = {
-      title: '常规力量训练（塑形）',
-      meta: '40–50 分钟',
-      body: `<ul>
-        <li><strong>深蹲：</strong>4 组 × 10–12 次</li>
-        <li><strong>俯卧撑 / 卧推：</strong>4 组 × 12 次</li>
-        <li><strong>弓步蹲：</strong>3 组 × 每侧 12 次</li>
-        <li><strong>哑铃划船：</strong>4 组 × 12 次</li>
-        <li><strong>平板支撑：</strong>3 组 × 45 秒</li>
-      </ul>`,
-      note: '💡 组间休息 60–90 秒，注重动作质量。'
-    };
-  } else if (bmiGoalKey === 'overweight') {
-    sessions.strength = {
-      title: '保肌力量训练（复合动作）',
-      meta: '30–40 分钟',
-      body: `<ul>
-        <li><strong>深蹲：</strong>3 组 × 12 次（轻重量）</li>
-        <li><strong>俯卧撑：</strong>3 组 × 10–12 次</li>
-        <li><strong>哑铃划船：</strong>3 组 × 12 次</li>
-        <li><strong>臀桥：</strong>3 组 × 15 次</li>
-        <li><strong>平板支撑：</strong>3 组 × 30 秒</li>
-      </ul>`,
-      note: '💡 减脂期力量训练的目的是保住肌肉，不需要大重量。'
-    };
-  } else {
-    // 肥胖：坐姿 / 器械为主
-    sessions.strength = {
-      title: '坐姿 / 器械力量（安全增肌）',
-      meta: '25–35 分钟',
-      body: `<ul>
-        <li><strong>坐姿腿举：</strong>3 组 × 12 次（器械）</li>
-        <li><strong>坐姿推胸：</strong>3 组 × 12 次（器械）</li>
-        <li><strong>坐姿划船：</strong>3 组 × 12 次（器械）</li>
-        <li><strong>臀桥：</strong>3 组 × 15 次</li>
-        <li><strong>靠墙静蹲：</strong>3 组 × 30 秒</li>
-      </ul>`,
-      note: '⚠️ 避免站姿自由重量深蹲、硬拉，等体重下降后再逐步加入。'
-    };
-  }
-
-  // ===== HIIT =====
-  if (bmiGoalKey === 'obese') {
-    sessions.hiit = {
-      title: '低冲击 HIIT',
-      meta: '15 分钟',
-      body: `<ul>
-        <li><strong>快走冲刺 + 慢走：</strong>30 秒快 + 60 秒慢 × 8 轮</li>
-        <li><strong>椭圆机冲刺：</strong>20 秒快 + 40 秒慢 × 8 轮</li>
-        <li><strong>动感单车冲刺：</strong>20 秒快 + 40 秒慢 × 8 轮</li>
-      </ul>`,
-      note: '⚠️ 不要做波比跳、开合跳、深蹲跳等高冲击动作。'
-    };
-  } else if (bmiGoalKey === 'overweight') {
-    sessions.hiit = {
-      title: '标准 HIIT（燃脂）',
-      meta: '15–20 分钟',
-      body: `<ul>
-        <li><strong>开合跳：</strong>30 秒 × 6 组</li>
-        <li><strong>高抬腿：</strong>30 秒 × 6 组</li>
-        <li><strong>波比跳：</strong>20 秒 × 6 组</li>
-        <li><strong>登山跑：</strong>30 秒 × 6 组</li>
-      </ul>`,
-      note: '💡 每组之间休息 30 秒，每周不超过 2 次。'
-    };
-  } else if (bmiGoalKey === 'normal') {
-    sessions.hiit = {
-      title: '进阶 HIIT（提升体能）',
-      meta: '15–20 分钟',
-      body: `<ul>
-        <li><strong>波比跳：</strong>30 秒 × 8 组</li>
-        <li><strong>深蹲跳：</strong>30 秒 × 6 组</li>
-        <li><strong>俯卧撑 + 跳起：</strong>30 秒 × 6 组</li>
-        <li><strong>高抬腿：</strong>30 秒 × 6 组</li>
-      </ul>`,
-      note: '💡 组间休息 20–30 秒，训练前充分热身。'
-    };
-  } else {
-    sessions.hiit = {
-      title: '轻量 HIIT',
-      meta: '10–15 分钟',
-      body: `<ul>
-        <li><strong>开合跳：</strong>30 秒 × 5 组</li>
-        <li><strong>高抬腿：</strong>30 秒 × 5 组</li>
-      </ul>`,
-      note: '⚠️ 偏瘦人群不要频繁做 HIIT，会消耗增肌热量。'
-    };
-  }
-
-  // ===== 休息日建议 =====
-  sessions.rest = {
-    title: '休息与恢复',
-    meta: '主动恢复',
-    body: `<ul>
-      <li><strong>拉伸：</strong>全身静态拉伸 10–15 分钟</li>
-      <li><strong>散步：</strong>轻松散步 20–30 分钟</li>
-      <li><strong>睡眠：</strong>保证 7–9 小时，是肌肉修复的关键</li>
-      <li><strong>补水：</strong>每天 1.5–2L 水</li>
-    </ul>`,
-    note: '💡 恢复做得好，下次训练表现更强。'
-  };
-
-  return sessions;
-}
-
-// 渲染个性化运动方案
-function renderExercisePlan() {
-  if (!currentData) return;
-  const d = currentData;
-  const activity = parseFloat(d.activity);
-  const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
-  const goal = getBmiGoal(d.bmi);
-  const schedule = buildWeeklySchedule(goal.key, levelInfo.level);
-  const sessions = buildSessionDetails(goal.key, levelInfo.level);
-
-  // 训练天数统计
-  const trainDays = schedule.filter(s => s.type !== 'rest').length;
-  const cardioDays = schedule.filter(s => s.type === 'cardio').length;
-  const strengthDays = schedule.filter(s => s.type === 'strength').length;
-  const hiitDays = schedule.filter(s => s.type === 'hiit').length;
-
-  // 热量缺口 & 运动量估算
-  const deficit = d.bmi>=24 ? 400 : d.bmi<18.5 ? 0 : 150;
-  const runMin = deficit>0 ? Math.round(deficit/(0.11*d.w)) : 0;
-  const steps = deficit>0 ? Math.round(deficit/(0.00045*d.w)) : 0;
-
-  // 顶部横幅
-  let html = `
-    <div class="plan-banner">
-      <div class="pb-icon">${goal.icon}</div>
-      <div class="pb-text">
-        <div class="pb-title">${goal.label} · ${levelInfo.label}</div>
-        <div class="pb-sub">${goal.desc}</div>
-      </div>
-      <div class="pb-tag">每周 ${trainDays} 练</div>
-    </div>
-  `;
-
-  // 每周安排
-  html += `<h3 style="margin-top:6px">📅 每周训练安排</h3>`;
-  html += `<div class="week-grid">`;
-  schedule.forEach(s => {
-    html += `<div class="week-day ${s.cls}">
-      <div class="wd-name">${s.day}</div>
-      <div class="wd-icon">${s.icon}</div>
-      <div style="font-size:10px;margin-top:2px;color:#6b7a6c">${s.label}</div>
-    </div>`;
-  });
-  html += `</div>`;
-
-  // 训练结构统计
-  html += `<div class="ex-grid" style="margin-top:14px">
-    <div class="ex-item"><div class="ex-val">${cardioDays}<small> 天</small></div><div class="ex-label">有氧 🏃</div></div>
-    <div class="ex-item"><div class="ex-val">${strengthDays}<small> 天</small></div><div class="ex-label">力量 🏋️</div></div>
-    <div class="ex-item"><div class="ex-val">${hiitDays}<small> 天</small></div><div class="ex-label">HIIT ⚡</div></div>
-    <div class="ex-item"><div class="ex-val">${7-trainDays}<small> 天</small></div><div class="ex-label">休息 😴</div></div>
-  </div>`;
-
-  // 每个训练类型的详细内容
-  const usedTypes = new Set(schedule.filter(s => s.type !== 'rest').map(s => s.type));
-  html += `<h3 style="margin-top:20px">🏃 具体训练内容</h3>`;
-  html += `<div class="session-list">`;
-
-  ['cardio','strength','hiit'].forEach(type => {
-    if (!usedTypes.has(type)) return;
-    const s = sessions[type];
-    html += `<div class="session-item">
-      <div class="si-head">
-        <div class="si-title">${s.title}</div>
-        <div class="si-meta">${s.meta}</div>
-      </div>
-      <div class="si-body">${s.body}</div>
-      <div class="si-note">${s.note}</div>
-    </div>`;
-  });
-
-  // 休息日
-  html += `<div class="session-item">
-    <div class="si-head">
-      <div class="si-title">${sessions.rest.title}</div>
-      <div class="si-meta">${sessions.rest.meta}</div>
-    </div>
-    <div class="si-body">${sessions.rest.body}</div>
-    <div class="si-note">${sessions.rest.note}</div>
-  </div>`;
-
-  html += `</div>`;
-
-  // 热量缺口提示
-  if (deficit > 0) {
-    html += `<div class="warn-box">
-      🎯 为达成每日约 <strong>${deficit} kcal</strong> 的热量缺口，你大约需要：
-      慢跑 <strong>${runMin} 分钟</strong>，或快走 <strong>${steps.toLocaleString()} 步</strong>。
-      建议把运动分散到每周训练日中，不要一次完成。
-    </div>`;
-  } else if (d.bmi < 18.5) {
-    html += `<div class="warn-box">
-      🍚 你偏瘦，不需要刻意制造热量缺口。运动以力量训练为主，有氧控制在每周 1–2 次，每次不超过 30 分钟。
-    </div>`;
-  } else {
-    html += `<div class="warn-box">
-      ⚖️ 你体重正常，运动目标是保持体能和肌肉线条。建议每周 150 分钟中等强度运动即可。
-    </div>`;
-  }
-
-  $('exercisePlan').innerHTML = html;
+  if (bmi < 18.5) return { key:'underweight', label:'增重增肌', icon:'🍚', desc:'你的体重偏低，重点是通过力量训练增肌，配合充足热量摄入。' };
+  if (bmi < 24) return { key:'normal', label:'保持体能', icon:'⚖️', desc:'你的体重在健康范围，目标是维持体能、增强肌肉线条。' };
+  if (bmi < 28) return { key:'overweight', label:'减脂塑形', icon:'🔥', desc:'你的体重偏高，重点是制造热量缺口。以中低强度有氧为主，配合力量训练保住肌肉。' };
+  return { key:'obese', label:'安全减重', icon:'🛡️', desc:'你的体重明显偏高，初期以低冲击有氧为主，保护膝盖和关节。' };
 }
 
 // ============================================================
-// ⑤ 营养相似度替换算法
+// ④ 营养相似度替换算法
 // ============================================================
 const NUTRI_WEIGHT = { p:0.40, c:0.20, f:0.20, kcal:0.20 };
 const SCALE = { p:30, c:100, f:100, kcal:900 };
@@ -954,41 +639,46 @@ function getSubstitutes(name, tags, topN = 4) {
     .slice(0, topN);
 }
 
+// 生成多套三餐方案（基于实际食材克数累加热量）
 function generateMealPlans(meal, tags, maxPlans = 4) {
   const problems = [];
-  meal.ingredients.forEach((ing, idx) => {
-    if (isExcluded(ing, tags)) {
-      problems.push({ idx, original: ing, candidates: getSubstitutes(ing, tags, 4) });
+  meal.items.forEach((item, idx) => {
+    if (isExcluded(item.food, tags)) {
+      problems.push({ idx, original: item.food, gram: item.g, candidates: getSubstitutes(item.food, tags, 4) });
     }
   });
 
   if (!problems.length) {
-    return [{ ingredients:[...meal.ingredients], desc:meal.desc, swaps:[], score:0 }];
+    return [{
+      items: meal.items.map(i => ({...i})),
+      swaps: [],
+      score: 0,
+      totalKcal: calcMealKcal(meal.items)
+    }];
   }
 
   const plans = [];
   const maxCombos = Math.min(maxPlans, Math.max(...problems.map(p => p.candidates.length)) || 1);
 
   for (let round = 0; round < maxCombos; round++) {
-    const newIngredients = [...meal.ingredients];
+    const newItems = meal.items.map(i => ({...i}));
     const swaps = [];
     let totalDist = 0, valid = true;
 
     problems.forEach(p => {
       const cand = p.candidates[round % p.candidates.length];
       if (!cand) { valid = false; return; }
-      newIngredients[p.idx] = cand.name;
+      newItems[p.idx] = { food: cand.name, g: p.gram };
       swaps.push({ from:p.original, to:cand.name, distance:+cand.distance.toFixed(3) });
       totalDist += cand.distance;
     });
     if (!valid) continue;
 
-    let newDesc = meal.desc;
-    swaps.forEach(s => { newDesc = newDesc.split(s.from).join(s.to); });
-
     plans.push({
-      ingredients: newIngredients, desc: newDesc, swaps,
-      score: +(totalDist / swaps.length).toFixed(3)
+      items: newItems,
+      swaps,
+      score: +(totalDist / swaps.length).toFixed(3),
+      totalKcal: calcMealKcal(newItems)
     });
   }
 
@@ -996,15 +686,30 @@ function generateMealPlans(meal, tags, maxPlans = 4) {
 
   const seen = new Set();
   return plans.filter(pl => {
-    const key = pl.ingredients.join('|');
+    const key = pl.items.map(i => i.food).join('|');
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   }).slice(0, maxPlans);
 }
 
+// 根据实际食材克数累加热量
+function calcMealKcal(items) {
+  let total = 0;
+  items.forEach(item => {
+    const info = FOOD_DB[item.food];
+    if (info) total += info.kcal * item.g / 100;
+  });
+  return Math.round(total);
+}
+
+// 根据食材列表生成描述文字
+function buildMealDesc(items) {
+  return items.map(i => `${i.food}${i.g}g`).join(' + ');
+}
+
 // ============================================================
-// ⑥ 工具
+// ⑤ 工具
 // ============================================================
 const $ = id => document.getElementById(id);
 const store = {
@@ -1037,7 +742,7 @@ document.querySelectorAll('#dietChips .chip').forEach(chip => {
 });
 
 // ============================================================
-// ⑦ BMI 计算
+// ⑥ BMI 计算
 // ============================================================
 function calcBMI() {
   const h = parseFloat($('height').value);
@@ -1079,7 +784,7 @@ function calcBMI() {
 }
 
 // ============================================================
-// ⑧ 生成规划
+// ⑦ 生成规划
 // ============================================================
 function generatePlan() {
   if (!currentData) { go('screen-bmi'); return; }
@@ -1090,23 +795,19 @@ function generatePlan() {
   else if (d.bmi < 18.5) target = d.tdee + 300;
   else target = d.tdee;
 
-  const bKcal = Math.round(target*0.3);
-  const lKcal = Math.round(target*0.4);
-  const dKcal = Math.round(target*0.3);
-
   const pickIdx = arr => Math.floor(Math.random()*arr.length);
-  const rawB = MEALS.breakfast[pickIdx(MEALS.breakfast)];
-  const rawL = MEALS.lunch[pickIdx(MEALS.lunch)];
-  const rawD = MEALS.dinner[pickIdx(MEALS.dinner)];
+  const rawB = MEALS_DB.breakfast[pickIdx(MEALS_DB.breakfast)];
+  const rawL = MEALS_DB.lunch[pickIdx(MEALS_DB.lunch)];
+  const rawD = MEALS_DB.dinner[pickIdx(MEALS_DB.dinner)];
 
   const plansB = generateMealPlans(rawB, selectedTags);
   const plansL = generateMealPlans(rawL, selectedTags);
   const plansD = generateMealPlans(rawD, selectedTags);
 
   currentPlanOptions = {
-    breakfast: { raw:rawB, plans:plansB, kcal:bKcal, icon:'🌅', label:'早餐' },
-    lunch:     { raw:rawL, plans:plansL, kcal:lKcal, icon:'☀️', label:'午餐' },
-    dinner:    { raw:rawD, plans:plansD, kcal:dKcal, icon:'🌙', label:'晚餐' }
+    breakfast: { raw:rawB, plans:plansB, icon:'🌅', label:'早餐' },
+    lunch:     { raw:rawL, plans:plansL, icon:'☀️', label:'午餐' },
+    dinner:    { raw:rawD, plans:plansD, icon:'🌙', label:'晚餐' }
   };
   currentPlanIndex = { breakfast:0, lunch:0, dinner:0 };
 
@@ -1116,6 +817,9 @@ function generatePlan() {
   $('bmiTag2').style.background = d.color+'22';
   $('bmiTag2').style.color = d.color;
   $('bmiNote2').textContent = d.note;
+
+  // 与上次对比
+  renderCompare();
 
   $('dietNote').textContent =
     `基础代谢约 ${Math.round(d.bmr)} kcal，每日总消耗约 ${Math.round(d.tdee)} kcal，` +
@@ -1132,8 +836,161 @@ function generatePlan() {
   go('screen-result');
 }
 
+// 与上次对比
+function renderCompare() {
+  const list = store.get('history', []);
+  const box = $('compareBox');
+  if (list.length < 2 || !currentData) { box.innerHTML = ''; return; }
+  // 上一条（不含本次）
+  const prev = list[list.length - 2];
+  const curr = currentData;
+  const diff = (curr.bmi - prev.bmi).toFixed(1);
+  const diffW = (curr.w - prev.weight).toFixed(1);
+  let msg = '';
+  if (Math.abs(diff) < 0.05 && Math.abs(diffW) < 0.05) {
+    msg = '📊 与上次相比：数据基本持平，继续保持。';
+  } else {
+    const bmiArrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+    const wArrow = diffW > 0 ? '↑' : diffW < 0 ? '↓' : '→';
+    msg = `📊 与上次相比：BMI ${bmiArrow} ${Math.abs(diff)}，体重 ${wArrow} ${Math.abs(diffW)} kg。`;
+    if (diff < 0 && curr.bmi >= 18.5) msg += ' 减重进展良好，注意保持肌肉量。';
+    else if (diff > 0 && curr.bmi < 24) msg += ' 体重上升，若目标是增肌可继续。';
+  }
+  box.innerHTML = `<div class="compare-box">${msg}</div>`;
+}
+
 // ============================================================
-// ⑨ 渲染方案
+// ⑧ 渲染个性化运动方案
+// ============================================================
+function renderExercisePlan() {
+  if (!currentData) return;
+  const d = currentData;
+  const activity = parseFloat(d.activity);
+  const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
+  const goal = getBmiGoal(d.bmi);
+
+  const templates = EXERCISE_DB.templates;
+  const details = EXERCISE_DB.details;
+  const restInfo = EXERCISE_DB.rest;
+
+  const arr = (templates[goal.key] && templates[goal.key][levelInfo.level]) || templates.normal[3];
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const typeMap = {
+    rest:     { icon:'😴', label:'休息',   cls:'rest' },
+    cardio:   { icon:'🏃', label:'有氧',   cls:'cardio' },
+    strength: { icon:'🏋️', label:'力量',   cls:'strength' },
+    hiit:     { icon:'⚡', label:'HIIT',   cls:'hi' }
+  };
+  const schedule = arr.map((t, i) => ({ day:dayNames[i], type:t, ...typeMap[t] }));
+
+  const trainDays = schedule.filter(s => s.type !== 'rest').length;
+  const cardioDays = schedule.filter(s => s.type === 'cardio').length;
+  const strengthDays = schedule.filter(s => s.type === 'strength').length;
+  const hiitDays = schedule.filter(s => s.type === 'hiit').length;
+
+  // 热量缺口
+  const deficit = d.bmi>=24 ? 400 : d.bmi<18.5 ? 0 : 150;
+
+  // 计算每周运动可消耗的热量
+  const goalDetails = details[goal.key] || details.normal;
+  let weeklyBurn = 0;
+  schedule.forEach(s => {
+    if (s.type === 'rest') return;
+    const info = goalDetails[s.type];
+    if (info) {
+      const min = parseInt(info.meta) || 30;
+      weeklyBurn += (info.calPerMin || 8) * min;
+    }
+  });
+
+  // 顶部横幅
+  let html = `
+    <div class="plan-banner">
+      <div class="pb-icon">${goal.icon}</div>
+      <div class="pb-text">
+        <div class="pb-title">${goal.label} · ${levelInfo.label}</div>
+        <div class="pb-sub">${goal.desc}</div>
+      </div>
+      <div class="pb-tag">每周 ${trainDays} 练</div>
+    </div>
+  `;
+
+  // 每周安排
+  html += `<h3 style="margin-top:6px">📅 每周训练安排</h3>`;
+  html += `<div class="week-grid">`;
+  schedule.forEach(s => {
+    html += `<div class="week-day ${s.cls}">
+      <div class="wd-name">${s.day}</div>
+      <div class="wd-icon">${s.icon}</div>
+      <div style="font-size:10px;margin-top:2px;color:#6b7a6c">${s.label}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // 训练结构统计
+  html += `<div class="ex-grid" style="margin-top:14px">
+    <div class="ex-item"><div class="ex-val">${cardioDays}<small> 天</small></div><div class="ex-label">有氧 🏃</div></div>
+    <div class="ex-item"><div class="ex-val">${strengthDays}<small> 天</small></div><div class="ex-label">力量 🏋️</div></div>
+    <div class="ex-item"><div class="ex-val">${hiitDays}<small> 天</small></div><div class="ex-label">HIIT ⚡</div></div>
+    <div class="ex-item"><div class="ex-val">${7-trainDays}<small> 天</small></div><div class="ex-label">休息 😴</div></div>
+  </div>`;
+
+  // 详细内容
+  const usedTypes = new Set(schedule.filter(s => s.type !== 'rest').map(s => s.type));
+  html += `<h3 style="margin-top:20px">🏃 具体训练内容</h3>`;
+  html += `<div class="session-list">`;
+
+  ['cardio','strength','hiit'].forEach(type => {
+    if (!usedTypes.has(type)) return;
+    const s = goalDetails[type];
+    if (!s) return;
+    html += `<div class="session-item">
+      <div class="si-head">
+        <div class="si-title">${s.title}</div>
+        <div class="si-meta">${s.meta}</div>
+      </div>
+      <div class="si-body">${s.body}</div>
+      <div class="si-note">${s.note}</div>
+    </div>`;
+  });
+
+  html += `<div class="session-item">
+    <div class="si-head">
+      <div class="si-title">${restInfo.title}</div>
+      <div class="si-meta">${restInfo.meta}</div>
+    </div>
+    <div class="si-body">${restInfo.body}</div>
+    <div class="si-note">${restInfo.note}</div>
+  </div>`;
+
+  html += `</div>`;
+
+  // 运动与热量缺口联动
+  if (deficit > 0) {
+    const daysNeeded = Math.ceil(deficit * 7 / (weeklyBurn / trainDays || 1));
+    html += `<div class="warn-box">
+      🎯 你的每日热量缺口约 <strong>${deficit} kcal</strong>。<br>
+      按上面的训练安排，每周运动可额外消耗约 <strong>${weeklyBurn} kcal</strong>，
+      相当于每天 <strong>${Math.round(weeklyBurn/7)} kcal</strong>。<br>
+      ${weeklyBurn/7 >= deficit
+        ? '✅ 运动消耗已能覆盖缺口，饮食按建议摄入即可。'
+        : `💡 运动消耗还差约 ${Math.round(deficit - weeklyBurn/7)} kcal/天，需通过饮食控制补足。`}
+    </div>`;
+  } else if (d.bmi < 18.5) {
+    html += `<div class="warn-box">
+      🍚 你偏瘦，不需要热量缺口。运动以力量训练为主，有氧每周 1–2 次即可，避免消耗增肌热量。
+    </div>`;
+  } else {
+    html += `<div class="warn-box">
+      ⚖️ 你体重正常，运动目标是保持体能和肌肉线条。每周 150 分钟中等强度运动即可。
+    </div>`;
+  }
+
+  $('exercisePlan').innerHTML = html;
+}
+
+// ============================================================
+// ⑨ 渲染三餐方案（热量真实累加）
 // ============================================================
 function renderPlanOptions() {
   if (!currentPlanOptions) return;
@@ -1141,7 +998,7 @@ function renderPlanOptions() {
     const plan = opt.plans[idx];
     const swapHtml = plan.swaps.length
       ? `<div class="swap-note">🔄 已替换：${plan.swaps.map(s =>
-          `${s.from}→${s.to}（营养距离${s.distance}）`).join('、')}</div>`
+          `${s.from}→${s.to}`).join('、')}</div>`
       : '';
     const altHtml = opt.plans.length > 1
       ? `<div class="alt-row">
@@ -1149,11 +1006,12 @@ function renderPlanOptions() {
             `<span class="alt-chip ${i===idx?'active':''}"
                    onclick="switchPlan('${opt.label}',${i})">方案${i+1}</span>`).join('')}
         </div>` : '';
+    const desc = buildMealDesc(plan.items);
     return `<div class="meal">
       <div class="meal-icon">${opt.icon}</div>
       <div class="meal-body">
-        <div class="meal-title">${opt.label} · ${opt.raw.name} <span class="kcal">约${opt.kcal}kcal</span></div>
-        <div class="meal-desc">${plan.desc}</div>
+        <div class="meal-title">${opt.label} · ${opt.raw.name} <span class="kcal">${plan.totalKcal} kcal</span></div>
+        <div class="meal-desc">${desc}</div>
         ${swapHtml}${altHtml}
       </div>
     </div>`;
@@ -1184,11 +1042,11 @@ function renderMealScience() {
   let html = '';
   sections.forEach(sec => {
     const plan = sec.opt.plans[sec.idx];
-    const items = plan.ingredients.map(name => {
-      const info = FOOD_DB[name];
+    const items = plan.items.map(item => {
+      const info = FOOD_DB[item.food];
       if (!info) return '';
       return `<div class="sci-item">
-        <div class="sci-name">${name}<span class="sci-tag">${info.kcal} kcal/100g</span></div>
+        <div class="sci-name">${item.food}（${item.g}g）<span class="sci-tag">${info.kcal} kcal/100g</span></div>
         <div class="sci-text">${info.sci}</div>
       </div>`;
     }).join('');
@@ -1215,9 +1073,9 @@ function saveCurrentPlan() {
     bmi: d.bmiR, tag: d.tag, weight: d.w, height: d.h,
     bmr: Math.round(d.bmr), tdee: Math.round(d.tdee), target: Math.round(target),
     meals: {
-      breakfast: { name:currentPlanOptions.breakfast.raw.name, desc:pB.desc, kcal:currentPlanOptions.breakfast.kcal, swaps:pB.swaps },
-      lunch:     { name:currentPlanOptions.lunch.raw.name, desc:pL.desc, kcal:currentPlanOptions.lunch.kcal, swaps:pL.swaps },
-      dinner:    { name:currentPlanOptions.dinner.raw.name, desc:pD.desc, kcal:currentPlanOptions.dinner.kcal, swaps:pD.swaps }
+      breakfast: { name:currentPlanOptions.breakfast.raw.name, desc:buildMealDesc(pB.items), kcal:pB.totalKcal, swaps:pB.swaps },
+      lunch:     { name:currentPlanOptions.lunch.raw.name, desc:buildMealDesc(pL.items), kcal:pL.totalKcal, swaps:pL.swaps },
+      dinner:    { name:currentPlanOptions.dinner.raw.name, desc:buildMealDesc(pD.items), kcal:pD.totalKcal, swaps:pD.swaps }
     },
     exercise: {
       run: deficit>0 ? Math.round(deficit/(0.11*d.w)) : 0,
@@ -1229,7 +1087,7 @@ function saveCurrentPlan() {
 }
 
 // ============================================================
-// ⑩ 单位切换
+// ⑩ 单位切换 & 食物热量估算
 // ============================================================
 document.querySelectorAll('#unitToggle button').forEach(btn => {
   btn.onclick = () => {
@@ -1247,7 +1105,7 @@ document.querySelectorAll('#unitToggle button').forEach(btn => {
         $('unitHint').textContent = `当前：按「${s.name}」输入，1${s.name} ≈ ${s.gram}g`;
         $('foodGram').placeholder = '1'; $('foodGram').value = '1';
       } else {
-        $('unitHint').textContent = '当前：生活单位（请先输入食物名称，或按克换算）';
+        $('unitHint').textContent = '当前：生活单位（请先输入食物名称）';
         $('foodGram').placeholder = '1';
       }
     }
@@ -1261,9 +1119,6 @@ function findFoodKey(name) {
   return key;
 }
 
-// ============================================================
-// ⑪ 食物热量估算
-// ============================================================
 function estimateFood() {
   const name = $('foodName').value.trim();
   const amount = parseFloat($('foodGram').value);
@@ -1304,7 +1159,7 @@ function estimateFood() {
       <p class="note">本次查询：${unitText} ≈ ${gram}g ≈ ${kcal} kcal</p>`;
   } else {
     $('customSciCard').style.display = 'block';
-    $('customSci').innerHTML = `<p class="note">暂无「${name}」的科普信息，我们正在持续补充食物数据库。</p>`;
+    $('customSci').innerHTML = `<p class="note">暂无「${name}」的科普信息。</p>`;
   }
 
   foodLog.push({ name, gram, unitText, kcal, time:Date.now() });
@@ -1330,7 +1185,7 @@ function delFood(i) {
 }
 
 // ============================================================
-// ⑫ 导出
+// ⑪ 导出
 // ============================================================
 function buildPlanText() {
   if (!currentPlan) return '暂无方案，请先生成健康规划。';
@@ -1340,28 +1195,29 @@ function buildPlanText() {
   let txt = `【青柠健康 · 饮食规划方案】\n生成时间：${p.date}\n\n`;
   txt += `— 身体数据 —\n身高：${p.height}cm  体重：${p.weight}kg\nBMI：${p.bmi}（${p.tag}）\n${tagLine}\n\n`;
   txt += `— 热量目标 —\n基础代谢 BMR：${p.bmr} kcal\n每日总消耗 TDEE：${p.tdee} kcal\n建议摄入：${p.target} kcal\n\n`;
-  txt += `— 三餐推荐 —\n`;
+  txt += `— 三餐推荐（热量按实际食材累加）—\n`;
   const mealName = { breakfast:'早餐', lunch:'午餐', dinner:'晚餐' };
   ['breakfast','lunch','dinner'].forEach(k => {
     const m = p.meals[k];
-    txt += `【${mealName[k]}】${m.name}（约${m.kcal} kcal）\n  ${m.desc}\n`;
-    if (m.swaps.length) txt += `  已替换：${m.swaps.map(s => `${s.from}→${s.to}（营养距离${s.distance}）`).join('、')}\n`;
+    txt += `【${mealName[k]}】${m.name}（${m.kcal} kcal）\n  ${m.desc}\n`;
+    if (m.swaps.length) txt += `  已替换：${m.swaps.map(s => `${s.from}→${s.to}`).join('、')}\n`;
     txt += '\n';
   });
 
-  // 个性化运动方案
   if (d) {
     const activity = parseFloat(d.activity);
     const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
     const goal = getBmiGoal(d.bmi);
-    const schedule = buildWeeklySchedule(goal.key, levelInfo.level);
+    const arr = EXERCISE_DB.templates[goal.key] && EXERCISE_DB.templates[goal.key][levelInfo.level];
+    const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+    const typeLabel = { rest:'休息', cardio:'有氧', strength:'力量', hiit:'HIIT' };
 
     txt += `— 专属运动方案 —\n`;
     txt += `类型：${goal.label} · ${levelInfo.label}\n`;
     txt += `${goal.desc}\n\n`;
     txt += `每周安排：\n`;
-    schedule.forEach(s => {
-      txt += `  ${s.day}：${s.label} ${s.type !== 'rest' ? s.icon : ''}\n`;
+    if (arr) arr.forEach((t, i) => {
+      txt += `  ${dayNames[i]}：${typeLabel[t]}\n`;
     });
     txt += `\n`;
   }
@@ -1403,6 +1259,56 @@ function downloadPlan() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
   alert('✅ 方案已下载');
+}
+
+// ============================================================
+// ⑫ 数据导出/导入
+// ============================================================
+function exportUserData() {
+  const data = {
+    version: 1,
+    exportAt: new Date().toISOString(),
+    dietTags: store.get('dietTags', []),
+    foodLog: store.get('foodLog', []),
+    history: store.get('history', [])
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `青柠健康数据_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function importUserData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!confirm('确定导入？当前数据会被覆盖。')) return;
+        if (data.dietTags) store.set('dietTags', data.dietTags);
+        if (data.foodLog) store.set('foodLog', data.foodLog);
+        if (data.history) store.set('history', data.history);
+        selectedTags = store.get('dietTags', []);
+        foodLog = store.get('foodLog', []);
+        renderFoodLog();
+        renderHistory();
+        alert('✅ 数据已导入，刷新页面后生效');
+        location.reload();
+      } catch (err) {
+        alert('❌ 文件格式错误：' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 // ============================================================
@@ -1450,7 +1356,7 @@ function clearHistory() {
 // ⑭ 启动
 // ============================================================
 window.addEventListener('load', async () => {
-  await loadFoodDB();
+  await loadAllData();
   $('foodList').innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
   renderFoodLog();
   renderHistory();
