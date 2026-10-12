@@ -369,11 +369,15 @@
 
 <script>
 // ============================================================
-// ① 联网加载食物库（raw 链接 + no-store + 短缓存）
+// ① 联网加载食物库（多源自动切换）
 // ============================================================
-const FOOD_DB_URL = 'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json';
-const CACHE_KEY = 'food_db_cache_v3';
-const CACHE_TIME = 1000 * 60 * 2; // 本地缓存 2 分钟
+const FOOD_DB_SOURCES = [
+  './foods.json',                                                        // 同域，最快最稳
+  'https://cdn.jsdelivr.net/gh/1433223-uu/food-db@main/foods.json',      // jsDelivr，国内可访问
+  'https://raw.githubusercontent.com/1433223-uu/food-db/main/foods.json' // 最后兜底
+];
+const CACHE_KEY = 'food_db_cache_v4';
+const CACHE_TIME = 1000 * 60 * 10; // 本地缓存 10 分钟
 
 const FOOD_DB_FALLBACK = {
   '米饭':   { kcal:116, p:2.6, f:0.3, c:25.9, cat:'主食', serving:{name:'碗',gram:200}, sci:'主要提供碳水化合物，是身体最直接的能量来源。' },
@@ -385,17 +389,28 @@ const FOOD_DB_FALLBACK = {
 
 let FOOD_DB = {};
 let foodDbStatus = 'loading';
+let foodDbSource = '';
+
+async function tryFetchSource(url) {
+  const sep = url.includes('?') ? '&' : '?';
+  const res = await fetch(url + sep + 't=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  const count = Object.keys(data).length;
+  if (count < 6) throw new Error('数据异常，仅 ' + count + ' 条');
+  return data;
+}
 
 async function loadFoodDB(forceOnline = false) {
   foodDbStatus = 'loading';
   updateDbStatusUI();
 
-  // 非强制时，先看本地缓存
   if (!forceOnline) {
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
       if (cached && Date.now() - cached.time < CACHE_TIME) {
         FOOD_DB = cached.data;
+        foodDbSource = cached.source || '缓存';
         foodDbStatus = 'cache';
         updateDbStatusUI();
         return;
@@ -403,26 +418,38 @@ async function loadFoodDB(forceOnline = false) {
     } catch {}
   }
 
-  // 联网拉最新
-  try {
-    const res = await fetch(FOOD_DB_URL + '?t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    const count = Object.keys(data).length;
-    if (count < 6) throw new Error('数据异常，仅 ' + count + ' 条');
-    FOOD_DB = data;
-    foodDbStatus = 'online';
-    localStorage.setItem(CACHE_KEY, JSON.stringify({ time: Date.now(), data }));
-  } catch (e) {
-    console.warn('联网失败：', e);
+  let lastErr = null;
+  for (const url of FOOD_DB_SOURCES) {
     try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
-      if (cached) { FOOD_DB = cached.data; foodDbStatus = 'cache'; }
-      else throw new Error('无缓存');
-    } catch {
-      FOOD_DB = FOOD_DB_FALLBACK;
-      foodDbStatus = 'fallback';
+      const data = await tryFetchSource(url);
+      FOOD_DB = data;
+      foodDbSource = url;
+      foodDbStatus = 'online';
+      localStorage.setItem(CACHE_KEY, JSON.stringify({
+        time: Date.now(), data, source: url
+      }));
+      updateDbStatusUI();
+      return;
+    } catch (e) {
+      console.warn('源失败：', url, e.message);
+      lastErr = e;
     }
+  }
+
+  console.warn('所有源都失败：', lastErr);
+  try {
+    const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (cached) {
+      FOOD_DB = cached.data;
+      foodDbSource = cached.source || '缓存';
+      foodDbStatus = 'cache';
+    } else {
+      throw new Error('无缓存');
+    }
+  } catch {
+    FOOD_DB = FOOD_DB_FALLBACK;
+    foodDbSource = '内置';
+    foodDbStatus = 'fallback';
   }
   updateDbStatusUI();
 }
@@ -437,8 +464,10 @@ function updateDbStatusUI() {
   };
   const s = map[foodDbStatus];
   const el = document.getElementById('dbStatus');
-  el.textContent = s.text;
-  el.style.color = s.color;
+  if (el) {
+    el.textContent = s.text;
+    el.style.color = s.color;
+  }
 }
 
 async function refreshFoodDB() {
@@ -451,8 +480,8 @@ async function refreshFoodDB() {
 }
 
 async function hardResetDB() {
-  // 清掉所有版本缓存 + 强制联网
-  ['food_db_cache_v1','food_db_cache_v2','food_db_cache_v3'].forEach(k => localStorage.removeItem(k));
+  ['food_db_cache_v1','food_db_cache_v2','food_db_cache_v3','food_db_cache_v4']
+    .forEach(k => localStorage.removeItem(k));
   FOOD_DB = {};
   await loadFoodDB(true);
   const el = document.getElementById('foodList');
