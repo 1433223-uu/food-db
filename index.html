@@ -89,7 +89,7 @@
     margin-bottom:10px; align-items:flex-start; }
   .meal-icon { font-size:22px; }
   .meal-body { flex:1; }
-  .meal-title { font-weight:600; font-size:14px; margin-bottom:4px; }
+  .meal-title { font-weight:600; font-size:14px; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center; }
   .meal-desc { font-size:13px; color:#6b7a6c; line-height:1.6; }
   .kcal { font-size:12px; color:var(--green); font-weight:600; }
   .swap-note { font-size:11px; color:#fb8c00; background:#fff3e0;
@@ -99,6 +99,9 @@
     border:1.5px solid #dce8dd; background:#fbfdfb; color:#5a6b5b; transition:.2s; }
   .alt-chip.active { background:var(--green); color:#fff; border-color:var(--green); font-weight:600; }
   .alt-chip:hover { border-color:#66bb6a; }
+  .meal-refresh { font-size:11px; padding:4px 10px; border-radius:8px; cursor:pointer;
+    border:1px solid #66bb6a; background:#fff; color:var(--green-dark); transition:.2s; white-space:nowrap; }
+  .meal-refresh:hover { background:var(--green-light); }
 
   .ex-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
   .ex-item { background:#f7fbf7; border-radius:12px; padding:14px; text-align:center; }
@@ -189,6 +192,33 @@
     border-radius:0 10px 10px 0; font-size:12px; color:#8a5a00; line-height:1.7; margin-top:12px; }
   .compare-box { background:#e3f2fd; border-left:3px solid #42a5f5; padding:12px 14px;
     border-radius:0 10px 10px 0; font-size:12px; color:#0d47a1; line-height:1.7; margin-bottom:12px; }
+
+  /* 强度选择 */
+  .intensity-card { border:2px solid #dce8dd; border-radius:14px; padding:16px;
+    margin-bottom:12px; cursor:pointer; transition:.2s; background:#fbfdfb; }
+  .intensity-card:hover { border-color:#66bb6a; }
+  .intensity-card.active { border-color:var(--green); background:var(--green-light); }
+  .intensity-card .ic-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .intensity-card .ic-title { font-weight:700; font-size:15px; color:var(--green-dark); }
+  .intensity-card .ic-icon { font-size:24px; }
+  .intensity-card .ic-desc { font-size:12px; color:#6b7a6c; line-height:1.6; }
+  .intensity-card.active .ic-title::before { content:'✓ '; }
+
+  /* 食材推荐 */
+  .ingredient-input { display:flex; gap:8px; flex-wrap:wrap; }
+  .ingredient-input input { flex:1; min-width:150px; }
+  .ingredient-tags { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .ingredient-tag { padding:6px 12px; border-radius:16px; background:var(--green-light);
+    color:var(--green-dark); font-size:12px; display:flex; align-items:center; gap:6px; }
+  .ingredient-tag .rm { cursor:pointer; color:#ef5350; font-weight:700; }
+  .suggest-item { border-left:3px solid #66bb6a; background:#f4faf4; padding:12px 14px;
+    border-radius:0 10px 10px 0; margin-bottom:10px; }
+  .suggest-item .sug-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .suggest-item .sug-name { font-weight:700; font-size:14px; color:var(--green-dark); }
+  .suggest-item .sug-match { font-size:11px; padding:2px 8px; border-radius:8px;
+    background:var(--green-light); color:var(--green-dark); font-weight:600; }
+  .suggest-item .sug-body { font-size:13px; color:#5a6b5b; line-height:1.7; }
+  .suggest-item .sug-missing { font-size:11px; color:#fb8c00; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -255,8 +285,41 @@
       <p class="screen-sub">我们会根据你的身体数据推荐三餐搭配</p>
       <div class="btn-row">
         <button class="ghost" onclick="go('screen-bye')">不需要</button>
-        <button onclick="go('screen-filter')">需要，继续</button>
+        <button onclick="go('screen-intensity')">需要，继续</button>
       </div>
+    </div>
+    <p class="ref-note">本平台所有建议仅作为参考</p>
+  </div>
+
+  <!-- 新增：运动强度选择 -->
+  <div class="screen" id="screen-intensity">
+    <div class="card">
+      <h2 class="screen-title">选择你想要的运动强度</h2>
+      <p class="screen-sub">我们会根据你的选择调整每周训练安排和具体动作</p>
+      <div id="intensityList">
+        <div class="intensity-card" data-level="light">
+          <div class="ic-head">
+            <div class="ic-title">轻度</div>
+            <div class="ic-icon">🚶</div>
+          </div>
+          <div class="ic-desc">以低强度有氧和基础力量为主，适合刚开始运动、体能较弱或想温和减脂的人群。每次 20–30 分钟，节奏轻松。</div>
+        </div>
+        <div class="intensity-card active" data-level="moderate">
+          <div class="ic-head">
+            <div class="ic-title">中度</div>
+            <div class="ic-icon">🏃</div>
+          </div>
+          <div class="ic-desc">有氧与力量均衡搭配，适合有一定运动基础、想稳定减脂或保持体能的人群。每次 30–45 分钟，中等节奏。</div>
+        </div>
+        <div class="intensity-card" data-level="high">
+          <div class="ic-head">
+            <div class="ic-title">高强度</div>
+            <div class="ic-icon">⚡</div>
+          </div>
+          <div class="ic-desc">加入 HIIT 和高强度力量训练，适合体能较好、想快速提升或突破平台期的人群。每次 45–60 分钟，挑战较大。</div>
+        </div>
+      </div>
+      <button onclick="go('screen-filter')">下一步：选择忌口</button>
     </div>
     <p class="ref-note">本平台所有建议仅作为参考</p>
   </div>
@@ -294,7 +357,7 @@
     <div class="card">
       <div class="section-head">
         <h3 style="margin:0">每日三餐推荐</h3>
-        <button class="small ghost" onclick="generatePlan()">换一批</button>
+        <span style="font-size:11px;color:#9aa89b">每餐可单独换一份</span>
       </div>
       <div id="meals" style="margin-top:12px"></div>
       <p class="note" id="dietNote"></p>
@@ -304,6 +367,22 @@
     <div class="card">
       <h3>🎯 你的专属运动方案</h3>
       <div id="exercisePlan"></div>
+    </div>
+
+    <div class="card">
+      <h3>🥕 现有食材推荐</h3>
+      <p class="screen-sub" style="margin-bottom:14px">输入你冰箱里现有的食材，我们推荐可以做的餐食</p>
+      <div class="ingredient-input">
+        <input type="text" id="ingredientInput" placeholder="如：鸡蛋、西红柿、米饭" list="foodList2">
+        <datalist id="foodList2"></datalist>
+        <button class="small" style="margin:0" onclick="addIngredient()">➕ 添加</button>
+      </div>
+      <div class="ingredient-tags" id="ingredientTags"></div>
+      <div class="btn-row">
+        <button class="small ghost" onclick="recommendByIngredients()">🔍 推荐餐食</button>
+        <button class="small ghost" onclick="clearIngredients()">🗑️ 清空食材</button>
+      </div>
+      <div id="ingredientResult" style="margin-top:16px"></div>
     </div>
 
     <div class="card">
@@ -384,7 +463,7 @@
 
 <script>
 // ============================================================
-// ① 多源加载（食物库 + 三餐库 + 运动库）
+// ① 多源加载
 // ============================================================
 const SOURCES = {
   foods: [
@@ -408,7 +487,6 @@ const CACHE_KEY_MEALS = 'meals_cache_v1';
 const CACHE_KEY_EX = 'exercise_cache_v1';
 const CACHE_TIME = 1000 * 60 * 10;
 
-// 食物库兜底
 const FOOD_DB_FALLBACK = {
   '米饭':   { kcal:116, p:2.6, f:0.3, c:25.9, cat:'主食', serving:{name:'碗',gram:200}, sci:'主要提供碳水化合物，是身体最直接的能量来源。' },
   '鸡胸肉': { kcal:165, p:31,  f:3.6, c:0,    cat:'蛋白质', serving:{name:'块',gram:120}, sci:'高蛋白低脂肪，有助于肌肉修复。' },
@@ -417,7 +495,6 @@ const FOOD_DB_FALLBACK = {
   '橄榄油': { kcal:884, p:0,   f:100, c:0,    cat:'油脂', serving:{name:'勺',gram:10}, sci:'富含单不饱和脂肪酸，有助心血管健康。' }
 };
 
-// 三餐库兜底（简化版）
 const MEALS_FALLBACK = {
   breakfast: [
     { name:"燕麦牛奶碗", items:[{food:"燕麦",g:40},{food:"脱脂牛奶",g:250},{food:"水煮蛋",g:50}] },
@@ -433,7 +510,6 @@ const MEALS_FALLBACK = {
   ]
 };
 
-// 运动库兜底
 const EXERCISE_FALLBACK = {
   templates: {
     underweight: {1:['strength','rest','cardio','rest','strength','rest','rest'],2:['strength','cardio','rest','strength','rest','cardio','rest'],3:['strength','cardio','strength','rest','strength','cardio','rest'],4:['strength','cardio','strength','rest','strength','cardio','strength']},
@@ -479,15 +555,12 @@ async function tryFetchSource(url) {
 }
 
 async function loadMultiSource(sources, cacheKey, fallback, validate) {
-  // 先看缓存
   try {
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
     if (cached && Date.now() - cached.time < CACHE_TIME) {
       if (validate(cached.data)) return { data: cached.data, status: 'cache' };
     }
   } catch {}
-
-  // 依次尝试
   for (const url of sources) {
     try {
       const data = await tryFetchSource(url);
@@ -498,42 +571,28 @@ async function loadMultiSource(sources, cacheKey, fallback, validate) {
       console.warn('源失败：', url, e.message);
     }
   }
-
-  // 降级
   try {
     const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
     if (cached && validate(cached.data)) return { data: cached.data, status: 'cache' };
   } catch {}
-
   return { data: fallback, status: 'fallback' };
 }
 
 async function loadAllData(forceOnline = false) {
   foodDbStatus = 'loading';
   updateDbStatusUI();
-
   if (forceOnline) {
     [CACHE_KEY, CACHE_KEY_MEALS, CACHE_KEY_EX].forEach(k => localStorage.removeItem(k));
   }
-
-  const foodsResult = await loadMultiSource(
-    SOURCES.foods, CACHE_KEY, FOOD_DB_FALLBACK,
-    d => Object.keys(d).length >= 6
-  );
+  const foodsResult = await loadMultiSource(SOURCES.foods, CACHE_KEY, FOOD_DB_FALLBACK,
+    d => Object.keys(d).length >= 6);
   FOOD_DB = foodsResult.data;
-
-  const mealsResult = await loadMultiSource(
-    SOURCES.meals, CACHE_KEY_MEALS, MEALS_FALLBACK,
-    d => d.breakfast && d.lunch && d.dinner
-  );
+  const mealsResult = await loadMultiSource(SOURCES.meals, CACHE_KEY_MEALS, MEALS_FALLBACK,
+    d => d.breakfast && d.lunch && d.dinner);
   MEALS_DB = mealsResult.data;
-
-  const exResult = await loadMultiSource(
-    SOURCES.exercise, CACHE_KEY_EX, EXERCISE_FALLBACK,
-    d => d.templates && d.details && d.rest
-  );
+  const exResult = await loadMultiSource(SOURCES.exercise, CACHE_KEY_EX, EXERCISE_FALLBACK,
+    d => d.templates && d.details && d.rest);
   EXERCISE_DB = exResult.data;
-
   foodDbStatus = foodsResult.status;
   updateDbStatusUI();
 }
@@ -555,6 +614,8 @@ async function refreshFoodDB() {
   await loadAllData(true);
   const el = document.getElementById('foodList');
   if (el) el.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
+  const el2 = document.getElementById('foodList2');
+  if (el2) el2.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
   alert('✅ 已刷新，食物 ' + Object.keys(FOOD_DB).length + ' 种');
 }
 
@@ -564,6 +625,8 @@ async function hardResetDB() {
   await loadAllData(true);
   const el = document.getElementById('foodList');
   if (el) el.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
+  const el2 = document.getElementById('foodList2');
+  if (el2) el2.innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
   alert('💥 已强制重载');
 }
 
@@ -583,7 +646,7 @@ const DIET_EXCLUDE = {
 };
 
 // ============================================================
-// ③ 活动量等级
+// ③ 活动量 & BMI 目标
 // ============================================================
 const ACTIVITY_LEVELS = {
   1.2:   { key:'sedentary', label:'久坐型',   days:3, level:1 },
@@ -599,8 +662,54 @@ function getBmiGoal(bmi) {
   return { key:'obese', label:'安全减重', icon:'🛡️', desc:'你的体重明显偏高，初期以低冲击有氧为主，保护膝盖和关节。' };
 }
 
+// 强度调整：不同强度对应不同的训练安排和具体内容
+function applyIntensity(schedule, intensity) {
+  // 轻度：减少训练天数，把 cardio 换成 rest
+  if (intensity === 'light') {
+    return schedule.map((t, i) => {
+      if (i % 2 === 0 && t !== 'rest') return 'rest'; // 隔天休
+      return t === 'hiit' ? 'cardio' : t;
+    });
+  }
+  // 高强度：把部分 cardio 换成 hiit
+  if (intensity === 'high') {
+    let replaced = false;
+    return schedule.map(t => {
+      if (t === 'cardio' && !replaced) { replaced = true; return 'hiit'; }
+      return t;
+    });
+  }
+  return schedule;
+}
+
+// 强度调整具体训练内容
+function getIntensityDetails(details, intensity) {
+  const result = JSON.parse(JSON.stringify(details));
+  if (intensity === 'light') {
+    // 轻度：时长缩短，强度降低
+    Object.keys(result).forEach(k => {
+      const d = result[k];
+      if (d.calPerMin) d.calPerMin = Math.round(d.calPerMin * 0.7);
+      d.meta = d.meta.replace(/(\d+)[–-](\d+)/, (m, a, b) => {
+        const mid = Math.round((+a + +b) / 2 * 0.7);
+        return mid + '–' + Math.round(mid * 1.2);
+      });
+    });
+  } else if (intensity === 'high') {
+    Object.keys(result).forEach(k => {
+      const d = result[k];
+      if (d.calPerMin) d.calPerMin = Math.round(d.calPerMin * 1.3);
+      d.meta = d.meta.replace(/(\d+)[–-](\d+)/, (m, a, b) => {
+        const mid = Math.round((+a + +b) / 2 * 1.3);
+        return mid + '–' + Math.round(mid * 1.2);
+      });
+    });
+  }
+  return result;
+}
+
 // ============================================================
-// ④ 营养相似度替换算法
+// ④ 营养相似度替换
 // ============================================================
 const NUTRI_WEIGHT = { p:0.40, c:0.20, f:0.20, kcal:0.20 };
 const SCALE = { p:30, c:100, f:100, kcal:900 };
@@ -610,10 +719,8 @@ function nutritionDistance(a, b) {
   const dc = (a.c - b.c) / SCALE.c;
   const df = (a.f - b.f) / SCALE.f;
   const dk = (a.kcal - b.kcal) / SCALE.kcal;
-  return Math.sqrt(
-    NUTRI_WEIGHT.p*dp*dp + NUTRI_WEIGHT.c*dc*dc +
-    NUTRI_WEIGHT.f*df*df + NUTRI_WEIGHT.kcal*dk*dk
-  );
+  return Math.sqrt(NUTRI_WEIGHT.p*dp*dp + NUTRI_WEIGHT.c*dc*dc +
+    NUTRI_WEIGHT.f*df*df + NUTRI_WEIGHT.kcal*dk*dk);
 }
 
 function isExcluded(name, tags) {
@@ -630,16 +737,11 @@ function getSubstitutes(name, tags, topN = 4) {
   if (!isExcluded(name, tags)) return [];
   return Object.entries(FOOD_DB)
     .filter(([n, info]) => n !== name && info.cat === src.cat && !isExcluded(n, tags))
-    .map(([n, info]) => ({
-      name: n,
-      distance: nutritionDistance(src, info),
-      kcal: info.kcal, p: info.p
-    }))
+    .map(([n, info]) => ({ name: n, distance: nutritionDistance(src, info), kcal: info.kcal, p: info.p }))
     .sort((a, b) => a.distance - b.distance)
     .slice(0, topN);
 }
 
-// 生成多套三餐方案（基于实际食材克数累加热量）
 function generateMealPlans(meal, tags, maxPlans = 4) {
   const problems = [];
   meal.items.forEach((item, idx) => {
@@ -647,24 +749,15 @@ function generateMealPlans(meal, tags, maxPlans = 4) {
       problems.push({ idx, original: item.food, gram: item.g, candidates: getSubstitutes(item.food, tags, 4) });
     }
   });
-
   if (!problems.length) {
-    return [{
-      items: meal.items.map(i => ({...i})),
-      swaps: [],
-      score: 0,
-      totalKcal: calcMealKcal(meal.items)
-    }];
+    return [{ items: meal.items.map(i => ({...i})), swaps: [], score: 0, totalKcal: calcMealKcal(meal.items) }];
   }
-
   const plans = [];
   const maxCombos = Math.min(maxPlans, Math.max(...problems.map(p => p.candidates.length)) || 1);
-
   for (let round = 0; round < maxCombos; round++) {
     const newItems = meal.items.map(i => ({...i}));
     const swaps = [];
     let totalDist = 0, valid = true;
-
     problems.forEach(p => {
       const cand = p.candidates[round % p.candidates.length];
       if (!cand) { valid = false; return; }
@@ -673,17 +766,9 @@ function generateMealPlans(meal, tags, maxPlans = 4) {
       totalDist += cand.distance;
     });
     if (!valid) continue;
-
-    plans.push({
-      items: newItems,
-      swaps,
-      score: +(totalDist / swaps.length).toFixed(3),
-      totalKcal: calcMealKcal(newItems)
-    });
+    plans.push({ items: newItems, swaps, score: +(totalDist / swaps.length).toFixed(3), totalKcal: calcMealKcal(newItems) });
   }
-
   plans.sort((a, b) => a.score - b.score);
-
   const seen = new Set();
   return plans.filter(pl => {
     const key = pl.items.map(i => i.food).join('|');
@@ -693,7 +778,6 @@ function generateMealPlans(meal, tags, maxPlans = 4) {
   }).slice(0, maxPlans);
 }
 
-// 根据实际食材克数累加热量
 function calcMealKcal(items) {
   let total = 0;
   items.forEach(item => {
@@ -703,7 +787,6 @@ function calcMealKcal(items) {
   return Math.round(total);
 }
 
-// 根据食材列表生成描述文字
 function buildMealDesc(items) {
   return items.map(i => `${i.food}${i.g}g`).join(' + ');
 }
@@ -717,18 +800,31 @@ const store = {
   set:(k,v)=>localStorage.setItem(k, JSON.stringify(v))
 };
 let selectedTags = store.get('dietTags', []);
+let selectedIntensity = store.get('intensity', 'moderate');
 let foodLog = store.get('foodLog', []);
 let currentData = null;
 let currentPlanOptions = null;
 let currentPlanIndex = { breakfast:0, lunch:0, dinner:0 };
 let currentPlan = null;
 let currentUnit = 'g';
+let userIngredients = [];
 
 function go(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   $(id).classList.add('active');
   window.scrollTo({ top:0, behavior:'smooth' });
 }
+
+// 强度选择
+document.querySelectorAll('#intensityList .intensity-card').forEach(card => {
+  if (card.dataset.level === selectedIntensity) card.classList.add('active');
+  card.onclick = () => {
+    document.querySelectorAll('#intensityList .intensity-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    selectedIntensity = card.dataset.level;
+    store.set('intensity', selectedIntensity);
+  };
+});
 
 document.querySelectorAll('#dietChips .chip').forEach(chip => {
   if (selectedTags.includes(chip.dataset.tag)) chip.classList.add('active');
@@ -754,7 +850,6 @@ function calcBMI() {
   if (!h || !w || h<80 || h>250 || w<20 || w>300) {
     alert('请输入有效的身高（80-250cm）和体重（20-300kg）'); return;
   }
-
   const hm = h/100;
   const bmi = w/(hm*hm);
   const bmiR = bmi.toFixed(1);
@@ -800,14 +895,10 @@ function generatePlan() {
   const rawL = MEALS_DB.lunch[pickIdx(MEALS_DB.lunch)];
   const rawD = MEALS_DB.dinner[pickIdx(MEALS_DB.dinner)];
 
-  const plansB = generateMealPlans(rawB, selectedTags);
-  const plansL = generateMealPlans(rawL, selectedTags);
-  const plansD = generateMealPlans(rawD, selectedTags);
-
   currentPlanOptions = {
-    breakfast: { raw:rawB, plans:plansB, icon:'🌅', label:'早餐' },
-    lunch:     { raw:rawL, plans:plansL, icon:'☀️', label:'午餐' },
-    dinner:    { raw:rawD, plans:plansD, icon:'🌙', label:'晚餐' }
+    breakfast: { raw:rawB, plans:generateMealPlans(rawB, selectedTags), icon:'🌅', label:'早餐' },
+    lunch:     { raw:rawL, plans:generateMealPlans(rawL, selectedTags), icon:'☀️', label:'午餐' },
+    dinner:    { raw:rawD, plans:generateMealPlans(rawD, selectedTags), icon:'🌙', label:'晚餐' }
   };
   currentPlanIndex = { breakfast:0, lunch:0, dinner:0 };
 
@@ -818,7 +909,6 @@ function generatePlan() {
   $('bmiTag2').style.color = d.color;
   $('bmiNote2').textContent = d.note;
 
-  // 与上次对比
   renderCompare();
 
   $('dietNote').textContent =
@@ -836,12 +926,31 @@ function generatePlan() {
   go('screen-result');
 }
 
-// 与上次对比
+// 单独刷新某一餐
+function refreshMeal(key) {
+  if (!currentPlanOptions) return;
+  const pool = MEALS_DB[key];
+  if (!pool || pool.length === 0) return;
+  // 避免抽到同一个
+  let raw;
+  let tries = 0;
+  do {
+    raw = pool[Math.floor(Math.random() * pool.length)];
+    tries++;
+  } while (raw.name === currentPlanOptions[key].raw.name && tries < 10 && pool.length > 1);
+
+  currentPlanOptions[key].raw = raw;
+  currentPlanOptions[key].plans = generateMealPlans(raw, selectedTags);
+  currentPlanIndex[key] = 0;
+  renderPlanOptions();
+  saveCurrentPlan();
+  renderExportBox();
+}
+
 function renderCompare() {
   const list = store.get('history', []);
   const box = $('compareBox');
   if (list.length < 2 || !currentData) { box.innerHTML = ''; return; }
-  // 上一条（不含本次）
   const prev = list[list.length - 2];
   const curr = currentData;
   const diff = (curr.bmi - prev.bmi).toFixed(1);
@@ -853,14 +962,12 @@ function renderCompare() {
     const bmiArrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
     const wArrow = diffW > 0 ? '↑' : diffW < 0 ? '↓' : '→';
     msg = `📊 与上次相比：BMI ${bmiArrow} ${Math.abs(diff)}，体重 ${wArrow} ${Math.abs(diffW)} kg。`;
-    if (diff < 0 && curr.bmi >= 18.5) msg += ' 减重进展良好，注意保持肌肉量。';
-    else if (diff > 0 && curr.bmi < 24) msg += ' 体重上升，若目标是增肌可继续。';
   }
   box.innerHTML = `<div class="compare-box">${msg}</div>`;
 }
 
 // ============================================================
-// ⑧ 渲染个性化运动方案
+// ⑧ 渲染运动方案（含强度）
 // ============================================================
 function renderExercisePlan() {
   if (!currentData) return;
@@ -873,7 +980,9 @@ function renderExercisePlan() {
   const details = EXERCISE_DB.details;
   const restInfo = EXERCISE_DB.rest;
 
-  const arr = (templates[goal.key] && templates[goal.key][levelInfo.level]) || templates.normal[3];
+  let arr = (templates[goal.key] && templates[goal.key][levelInfo.level]) || templates.normal[3];
+  arr = applyIntensity(arr, selectedIntensity);
+
   const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
   const typeMap = {
     rest:     { icon:'😴', label:'休息',   cls:'rest' },
@@ -888,11 +997,9 @@ function renderExercisePlan() {
   const strengthDays = schedule.filter(s => s.type === 'strength').length;
   const hiitDays = schedule.filter(s => s.type === 'hiit').length;
 
-  // 热量缺口
   const deficit = d.bmi>=24 ? 400 : d.bmi<18.5 ? 0 : 150;
+  const goalDetails = getIntensityDetails(details[goal.key] || details.normal, selectedIntensity);
 
-  // 计算每周运动可消耗的热量
-  const goalDetails = details[goal.key] || details.normal;
   let weeklyBurn = 0;
   schedule.forEach(s => {
     if (s.type === 'rest') return;
@@ -903,19 +1010,19 @@ function renderExercisePlan() {
     }
   });
 
-  // 顶部横幅
+  const intensityLabel = { light:'轻度', moderate:'中度', high:'高强度' }[selectedIntensity];
+
   let html = `
     <div class="plan-banner">
       <div class="pb-icon">${goal.icon}</div>
       <div class="pb-text">
-        <div class="pb-title">${goal.label} · ${levelInfo.label}</div>
+        <div class="pb-title">${goal.label} · ${levelInfo.label} · ${intensityLabel}强度</div>
         <div class="pb-sub">${goal.desc}</div>
       </div>
       <div class="pb-tag">每周 ${trainDays} 练</div>
     </div>
   `;
 
-  // 每周安排
   html += `<h3 style="margin-top:6px">📅 每周训练安排</h3>`;
   html += `<div class="week-grid">`;
   schedule.forEach(s => {
@@ -927,7 +1034,6 @@ function renderExercisePlan() {
   });
   html += `</div>`;
 
-  // 训练结构统计
   html += `<div class="ex-grid" style="margin-top:14px">
     <div class="ex-item"><div class="ex-val">${cardioDays}<small> 天</small></div><div class="ex-label">有氧 🏃</div></div>
     <div class="ex-item"><div class="ex-val">${strengthDays}<small> 天</small></div><div class="ex-label">力量 🏋️</div></div>
@@ -935,7 +1041,6 @@ function renderExercisePlan() {
     <div class="ex-item"><div class="ex-val">${7-trainDays}<small> 天</small></div><div class="ex-label">休息 😴</div></div>
   </div>`;
 
-  // 详细内容
   const usedTypes = new Set(schedule.filter(s => s.type !== 'rest').map(s => s.type));
   html += `<h3 style="margin-top:20px">🏃 具体训练内容</h3>`;
   html += `<div class="session-list">`;
@@ -965,9 +1070,7 @@ function renderExercisePlan() {
 
   html += `</div>`;
 
-  // 运动与热量缺口联动
   if (deficit > 0) {
-    const daysNeeded = Math.ceil(deficit * 7 / (weeklyBurn / trainDays || 1));
     html += `<div class="warn-box">
       🎯 你的每日热量缺口约 <strong>${deficit} kcal</strong>。<br>
       按上面的训练安排，每周运动可额外消耗约 <strong>${weeklyBurn} kcal</strong>，
@@ -978,7 +1081,7 @@ function renderExercisePlan() {
     </div>`;
   } else if (d.bmi < 18.5) {
     html += `<div class="warn-box">
-      🍚 你偏瘦，不需要热量缺口。运动以力量训练为主，有氧每周 1–2 次即可，避免消耗增肌热量。
+      🍚 你偏瘦，不需要热量缺口。运动以力量训练为主，有氧每周 1–2 次即可。
     </div>`;
   } else {
     html += `<div class="warn-box">
@@ -990,15 +1093,14 @@ function renderExercisePlan() {
 }
 
 // ============================================================
-// ⑨ 渲染三餐方案（热量真实累加）
+// ⑨ 渲染三餐（每餐独立换）
 // ============================================================
 function renderPlanOptions() {
   if (!currentPlanOptions) return;
-  const renderMeal = (opt, idx) => {
+  const renderMeal = (key, opt, idx) => {
     const plan = opt.plans[idx];
     const swapHtml = plan.swaps.length
-      ? `<div class="swap-note">🔄 已替换：${plan.swaps.map(s =>
-          `${s.from}→${s.to}`).join('、')}</div>`
+      ? `<div class="swap-note">🔄 已替换：${plan.swaps.map(s => `${s.from}→${s.to}`).join('、')}</div>`
       : '';
     const altHtml = opt.plans.length > 1
       ? `<div class="alt-row">
@@ -1010,16 +1112,19 @@ function renderPlanOptions() {
     return `<div class="meal">
       <div class="meal-icon">${opt.icon}</div>
       <div class="meal-body">
-        <div class="meal-title">${opt.label} · ${opt.raw.name} <span class="kcal">${plan.totalKcal} kcal</span></div>
+        <div class="meal-title">
+          <span>${opt.label} · ${opt.raw.name} <span class="kcal">${plan.totalKcal} kcal</span></span>
+          <span class="meal-refresh" onclick="refreshMeal('${key}')">🔄 换一份</span>
+        </div>
         <div class="meal-desc">${desc}</div>
         ${swapHtml}${altHtml}
       </div>
     </div>`;
   };
   $('meals').innerHTML =
-    renderMeal(currentPlanOptions.breakfast, currentPlanIndex.breakfast) +
-    renderMeal(currentPlanOptions.lunch, currentPlanIndex.lunch) +
-    renderMeal(currentPlanOptions.dinner, currentPlanIndex.dinner);
+    renderMeal('breakfast', currentPlanOptions.breakfast, currentPlanIndex.breakfast) +
+    renderMeal('lunch', currentPlanOptions.lunch, currentPlanIndex.lunch) +
+    renderMeal('dinner', currentPlanOptions.dinner, currentPlanIndex.dinner);
 
   renderMealScience();
 }
@@ -1072,6 +1177,7 @@ function saveCurrentPlan() {
     date: new Date().toLocaleString('zh-CN'),
     bmi: d.bmiR, tag: d.tag, weight: d.w, height: d.h,
     bmr: Math.round(d.bmr), tdee: Math.round(d.tdee), target: Math.round(target),
+    intensity: selectedIntensity,
     meals: {
       breakfast: { name:currentPlanOptions.breakfast.raw.name, desc:buildMealDesc(pB.items), kcal:pB.totalKcal, swaps:pB.swaps },
       lunch:     { name:currentPlanOptions.lunch.raw.name, desc:buildMealDesc(pL.items), kcal:pL.totalKcal, swaps:pL.swaps },
@@ -1087,7 +1193,91 @@ function saveCurrentPlan() {
 }
 
 // ============================================================
-// ⑩ 单位切换 & 食物热量估算
+// ⑩ 现有食材推荐
+// ============================================================
+function addIngredient() {
+  const input = $('ingredientInput');
+  const name = input.value.trim();
+  if (!name) return;
+  // 模糊匹配食物库
+  const key = findFoodKey(name);
+  if (!key) {
+    if (!confirm(`食材库中没有找到「${name}」，仍要添加吗？（推荐结果可能不准确）`)) return;
+    if (!userIngredients.includes(name)) userIngredients.push(name);
+  } else {
+    if (!userIngredients.includes(key)) userIngredients.push(key);
+  }
+  input.value = '';
+  renderIngredientTags();
+}
+
+function renderIngredientTags() {
+  $('ingredientTags').innerHTML = userIngredients.map((name, i) =>
+    `<span class="ingredient-tag">${name}<span class="rm" onclick="removeIngredient(${i})">×</span></span>`
+  ).join('');
+}
+
+function removeIngredient(i) {
+  userIngredients.splice(i, 1);
+  renderIngredientTags();
+}
+
+function clearIngredients() {
+  userIngredients = [];
+  renderIngredientTags();
+  $('ingredientResult').innerHTML = '';
+}
+
+function recommendByIngredients() {
+  if (userIngredients.length === 0) {
+    alert('请先添加至少一种食材'); return;
+  }
+  // 遍历所有餐食，计算匹配度
+  const allMeals = [];
+  ['breakfast','lunch','dinner'].forEach(period => {
+    MEALS_DB[period].forEach(meal => {
+      allMeals.push({ period, meal });
+    });
+  });
+
+  const scored = allMeals.map(({ period, meal }) => {
+    const ingredientNames = meal.items.map(i => i.food);
+    const matched = ingredientNames.filter(n => userIngredients.some(ui =>
+      n.includes(ui) || ui.includes(n)
+    ));
+    const matchRate = matched.length / ingredientNames.length;
+    const missing = ingredientNames.filter(n => !matched.includes(n));
+    return { period, meal, matched, missing, matchRate };
+  });
+
+  // 只显示匹配度 > 0 的，按匹配度排序
+  const filtered = scored.filter(s => s.matchRate > 0).sort((a, b) => b.matchRate - a.matchRate).slice(0, 8);
+
+  if (filtered.length === 0) {
+    $('ingredientResult').innerHTML = `<p class="note">没有找到匹配的餐食。你输入的食材可能不在我们的餐食库中，可以试试更常见的食材（如：鸡蛋、米饭、鸡胸肉、西兰花）。</p>`;
+    return;
+  }
+
+  const periodLabel = { breakfast:'早餐', lunch:'午餐', dinner:'晚餐' };
+  let html = `<p class="note" style="margin-bottom:10px">根据你的食材，找到 ${filtered.length} 个匹配餐食：</p>`;
+  filtered.forEach(s => {
+    const matchPct = Math.round(s.matchRate * 100);
+    const totalKcal = calcMealKcal(s.meal.items);
+    const desc = buildMealDesc(s.meal.items);
+    html += `<div class="suggest-item">
+      <div class="sug-head">
+        <div class="sug-name">${periodLabel[s.period]} · ${s.meal.name}</div>
+        <div class="sug-match">匹配 ${matchPct}%</div>
+      </div>
+      <div class="sug-body">${desc}（约 ${totalKcal} kcal）</div>
+      ${s.missing.length ? `<div class="sug-missing">还需：${s.missing.join('、')}</div>` : ''}
+    </div>`;
+  });
+  $('ingredientResult').innerHTML = html;
+}
+
+// ============================================================
+// ⑪ 单位切换 & 热量估算
 // ============================================================
 document.querySelectorAll('#unitToggle button').forEach(btn => {
   btn.onclick = () => {
@@ -1185,17 +1375,18 @@ function delFood(i) {
 }
 
 // ============================================================
-// ⑪ 导出
+// ⑫ 导出
 // ============================================================
 function buildPlanText() {
   if (!currentPlan) return '暂无方案，请先生成健康规划。';
   const p = currentPlan;
   const d = currentData;
-  const tagLine = p.dietTags.length ? `忌口：${p.dietTags.join('、')}（已按营养相似度替换）` : '忌口：无';
+  const tagLine = p.dietTags.length ? `忌口：${p.dietTags.join('、')}` : '忌口：无';
+  const intensityLabel = { light:'轻度', moderate:'中度', high:'高强度' }[p.intensity] || '中度';
   let txt = `【青柠健康 · 饮食规划方案】\n生成时间：${p.date}\n\n`;
-  txt += `— 身体数据 —\n身高：${p.height}cm  体重：${p.weight}kg\nBMI：${p.bmi}（${p.tag}）\n${tagLine}\n\n`;
+  txt += `— 身体数据 —\n身高：${p.height}cm  体重：${p.weight}kg\nBMI：${p.bmi}（${p.tag}）\n${tagLine}\n运动强度：${intensityLabel}\n\n`;
   txt += `— 热量目标 —\n基础代谢 BMR：${p.bmr} kcal\n每日总消耗 TDEE：${p.tdee} kcal\n建议摄入：${p.target} kcal\n\n`;
-  txt += `— 三餐推荐（热量按实际食材累加）—\n`;
+  txt += `— 三餐推荐 —\n`;
   const mealName = { breakfast:'早餐', lunch:'午餐', dinner:'晚餐' };
   ['breakfast','lunch','dinner'].forEach(k => {
     const m = p.meals[k];
@@ -1208,12 +1399,13 @@ function buildPlanText() {
     const activity = parseFloat(d.activity);
     const levelInfo = ACTIVITY_LEVELS[activity] || ACTIVITY_LEVELS[1.55];
     const goal = getBmiGoal(d.bmi);
-    const arr = EXERCISE_DB.templates[goal.key] && EXERCISE_DB.templates[goal.key][levelInfo.level];
+    let arr = EXERCISE_DB.templates[goal.key] && EXERCISE_DB.templates[goal.key][levelInfo.level];
+    if (arr) arr = applyIntensity(arr, p.intensity);
     const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
     const typeLabel = { rest:'休息', cardio:'有氧', strength:'力量', hiit:'HIIT' };
 
     txt += `— 专属运动方案 —\n`;
-    txt += `类型：${goal.label} · ${levelInfo.label}\n`;
+    txt += `类型：${goal.label} · ${levelInfo.label} · ${intensityLabel}强度\n`;
     txt += `${goal.desc}\n\n`;
     txt += `每周安排：\n`;
     if (arr) arr.forEach((t, i) => {
@@ -1262,13 +1454,14 @@ function downloadPlan() {
 }
 
 // ============================================================
-// ⑫ 数据导出/导入
+// ⑬ 数据导入导出
 // ============================================================
 function exportUserData() {
   const data = {
     version: 1,
     exportAt: new Date().toISOString(),
     dietTags: store.get('dietTags', []),
+    intensity: store.get('intensity', 'moderate'),
     foodLog: store.get('foodLog', []),
     history: store.get('history', [])
   };
@@ -1294,12 +1487,9 @@ function importUserData() {
         const data = JSON.parse(ev.target.result);
         if (!confirm('确定导入？当前数据会被覆盖。')) return;
         if (data.dietTags) store.set('dietTags', data.dietTags);
+        if (data.intensity) store.set('intensity', data.intensity);
         if (data.foodLog) store.set('foodLog', data.foodLog);
         if (data.history) store.set('history', data.history);
-        selectedTags = store.get('dietTags', []);
-        foodLog = store.get('foodLog', []);
-        renderFoodLog();
-        renderHistory();
         alert('✅ 数据已导入，刷新页面后生效');
         location.reload();
       } catch (err) {
@@ -1312,7 +1502,7 @@ function importUserData() {
 }
 
 // ============================================================
-// ⑬ 历史
+// ⑭ 历史
 // ============================================================
 function saveHistory(entry) {
   const list = store.get('history', []);
@@ -1353,13 +1543,16 @@ function clearHistory() {
 }
 
 // ============================================================
-// ⑭ 启动
+// ⑮ 启动
 // ============================================================
 window.addEventListener('load', async () => {
   await loadAllData();
-  $('foodList').innerHTML = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
+  const opts = Object.keys(FOOD_DB).map(k => `<option value="${k}">`).join('');
+  $('foodList').innerHTML = opts;
+  $('foodList2').innerHTML = opts;
   renderFoodLog();
   renderHistory();
+  renderIngredientTags();
 });
 </script>
 </body>
